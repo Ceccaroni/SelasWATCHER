@@ -2,6 +2,14 @@
 
 > Max. ~3 kompakte Einträge. Ältestes beim neuen Eintrag im Volltext nach `archive.md`. Details ins Ticket-File.
 
+## S003 — 2026-10-26 — CISA-Advisories reaktiviert (alerts.xml + Wrapper-Filter + always_high)
+- **403/WAF aus S001 ist weg:** `all.xml` liefert wieder 200 (jeder UA). Aber `all.xml` ist zu ~77 % ICS-/OT-Advisories (Siemens etc.) — Lärm für Adrians Stack — und erzeugt sogar Fehlalarm-HIGH (ICS-Summary mit „node.js"/„rce"). Real verifiziert: echtes Scoring gegen die 30 Live-Items.
+- **Lösung = dedizierter `alerts.xml`** (107 KB statt 5.7 MB): nur CISAs kuratierte Alerts. Davon ~26/30 „CISA Adds … to Catalog"-KEV-Wrapper → im Fetcher gefiltert (`_CISA_KEV_WRAPPER_RE`), weil `cisa-kev` (JSON) die paketgenau abdeckt. Rest = ~4 echte Alerts/6 Wochen (PHP, BeyondTrust, Ivanti, Citrix).
+- **Entscheid (Adrian): CISA-Alerts = immer HIGH** — neues `Source.always_high`-Flag, `scoring.score` kurzschließt darauf → jeder verbleibende Alert bannert. Damit hätte die PHP-Krise (Gründungsfall) ein Banner erzeugt. Neue „immer HIGH"-Klasse neben der Watchlist. → `docs/konzept.md` §6.5, CLAUDE.md Entscheidungs-Log.
+- **Verifiziert** über den realen `_fetch_feed`+`score`-Pfad (HTTP gemockt, Temp-State): 30 → 4, alle HIGH, kein Wrapper, PHP dabei. Regression: andere Quellen (heise/BC/KEV) scoren unverändert. Import-/Smoke-OK.
+- **Noch nicht live:** Code committet, aber LaunchAgent läuft bis Reload alten Code. **Beim Reload feuern die 4 CISA-Alerts einmalig gleichzeitig** (alle neu) — erwartbar, kein Fehler. Reload/Push auf Adrians Wort.
+- Offen (TICKET-004): PHP-Loudness via `high_keywords` (Fehlalarm-Tuning), py2app, BACS HTML.
+
 ## S002 — 2026-10-26 — Phase-4-Härtung: Notify-Fail-Retry + seen-Cap
 - **Stiller Verlust behoben (Regel #1):** `poller.poll_once` verbuchte bisher *jeden* neuen Eintrag als gesehen — auch eine HIGH, deren Zustellung scheiterte (terminal-notifier *und* osascript fehlgeschlagen). Jetzt: nur erfolgreich behandelte Einträge (`to_mark`) werden markiert; eine fehlgeschlagene HIGH bleibt „neu" → **Retry im nächsten Poll**. Zähler `failed_high` + `log.error` + Summary-Hinweis (⚠). MEDIUM/LOW gelten unverändert als behandelt.
 - **Alarm-Fallback sichtbar:** App listet eine fehlgeschlagene HIGH trotzdem (rotes Icon + Menüzeile). `app._drain` dedupliziert Einträge per `dedup_id` → der 5-Minuten-Retry erzeugt **keine** Doppelzeile/kein Hochzählen; rotes Icon bleibt vom ersten Auftreten bis „Alle als gelesen".

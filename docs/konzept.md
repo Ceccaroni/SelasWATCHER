@@ -49,7 +49,7 @@ Drei Optionen abgewogen:
 |---|---|---|---|---|---|
 | inside-it.ch | rss | `https://www.inside-it.ch/rss.xml` | `guid` (= URL) | `pubDate` | de |
 | 20min Digital | rss | `https://partner-feeds.20min.ch/rss/20minuten/digital` | `guid` (= URL) | `pubDate` | de-ch |
-| CISA Advisories+Alerts | rss | `https://www.cisa.gov/cybersecurity-advisories/all.xml` | `guid` (`/node/N`) | `pubDate` | en |
+| CISA Alerts | rss | `https://www.cisa.gov/cybersecurity-advisories/alerts.xml` | `guid` (`/node/N`) | `pubDate` | en |
 | CISA KEV (aktiv ausgenutzt) | json | `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json` | `cveID` | `dateAdded` | en |
 | CERT-Bund WID | rss | `https://wid.cert-bund.de/content/public/securityAdvisory/rss` | **WID-ID aus Titel/Link** (kein `guid`!) | `pubDate` | de |
 | Bürger-CERT (BSI) | rss | `https://wid.cert-bund.de/content/public/buergercert/rss` | `<id>` | `pubDate` | de |
@@ -62,7 +62,7 @@ Drei Optionen abgewogen:
 **Quellenspezifische Hinweise:**
 - **BACS:** Kein offizieller RSS/Atom-Feed (alle Kandidatenpfade 404, GovCERT liefert nur HTML). Nutzer wünscht die Quelle ausdrücklich → **HTML-Polling als eigenes Ticket (Phase 4).** Bis dahin ist die behördliche Autorität durch CISA + CERT-Bund abgedeckt (inhaltlich grosse Überlappung).
 - **CERT-Bund WID:** Kein `guid`; Dedup über die WID-ID (z. B. `WID-SEC-2026-4079`). Updates kommen als `[UPDATE]` mit neuem `pubDate` → `pubDate` allein ist KEIN Dedup-Schlüssel; (WID-ID + pubDate) als «neue Version» werten.
-- **CISA Advisories-RSS** (`all.xml`): beim MVP-Bau (S001) als **HTTP 403 (WAF-geblockt)** verifiziert — auch mit Browser-UA, also kein Header-Problem → **Quelle deaktiviert** (`sources.cisa-advisories = false`). CISA KEV (JSON) deckt das kritische „aktiv ausgenutzt"-Signal ab. Alternativen Fetch-Weg in Phase 4 prüfen. (Feed wäre sonst ~5–6 MB → ETag zwingend.)
+- **CISA Advisories/Alerts** (S003 reaktiviert): Der 403/WAF auf `all.xml` aus S001 ist **weg** (liefert wieder 200). Aber `all.xml` ist zu ~77 % **ICS-/OT-Advisories** (Siemens, Hitachi Energy, Moxa …) — für Adrians Web-/SaaS-Stack reiner Lärm, und erzeugt sogar Fehlalarm-HIGH (ICS-Summary enthält zufällig „node.js"/„rce"). Stattdessen der dedizierte **`alerts.xml`** (107 KB statt 5.7 MB): nur CISAs kuratierte übergreifende Alerts. Davon sind ~26/30 „CISA Adds … to Catalog"-**KEV-Wrapper** → im Fetcher gefiltert (`_CISA_KEV_WRAPPER_RE`), weil `cisa-kev` (JSON) dieselben Einträge paketgenau abdeckt. Der Rest (~4 in 6 Wochen: PHP, BeyondTrust, Ivanti, Citrix …) ist CISAs „sofort handeln"-Stream → **`always_high`** (jeder Alert bannert; §6.5). So hätte die PHP-Krise (Gründungsfall) ein Banner erzeugt.
 - **NVD & GitHub** sind JSON-APIs mit Query-Parametern für «geändert seit» (NVD: `lastModStartDate`/`lastModEndDate`; GitHub: `per_page`/Zeitfilter). NVD empfiehlt einen API-Key gegen Rate-Limits — ggf. später via Env-Var (nicht ins Repo, `.claude/rules/security.md`).
 - **BleepingComputer:** Channel-`pubDate` = Build-Zeit → fürs «neu seit» das Item-`pubDate` verwenden.
 
@@ -73,3 +73,4 @@ Drei Optionen abgewogen:
 2. **Stack:** Python + `feedparser` + `rumps`.
 3. **Quellen:** die drei fixen + **alle** Erweiterungen aus §5 (CISA KEV+Alerts, BSI/CERT-Bund, heise Security, BleepingComputer, NVD/CVE, GitHub Advisory).
 4. **Takt:** Poll alle **5 Min**; laute/kritische Notification **nur bei hoher Schwere**. Hohe Schwere = Zero-Day/aktiv ausgenutzt/RCE/Notfall-Patch/Ransomware/Datenleck **oder** Treffer auf der Technologie-Watchlist (PHP, Next.js, Node, Supabase/Postgres, Docker, Infomaniak) — weil Selas eine wachsende SaaS mit aktiven Usern ist, schreit Stack-Relevantes immer sofort.
+5. **CISA-Alerts = immer HIGH** (Adrian, S003). Nach dem Wrapper-Filter (§5) ist `alerts.xml` CISAs hand-kuratierter Dringlichkeits-Stream (~4/6 Wochen). Jeder verbleibende Alert bannert (`Source.always_high`), unabhängig von Watchlist/Keywords — bewusst eine neue „immer HIGH"-Klasse neben der Watchlist (#4), um Gründungsfälle wie die PHP-Krise sicher zu fangen (Regel #1). Niedrige Frequenz hält die Flut-Gefahr klein (Regel #2).

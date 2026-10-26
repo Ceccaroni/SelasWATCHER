@@ -22,8 +22,8 @@ DEFAULTS: dict[str, Any] = {
     "sources": {
         "inside-it": True,
         "20min": True,
-        # RSS WAF-geblockt (403, S001 verifiziert) -> deaktiviert; CISA KEV deckt es ab. Revisit Phase 4.
-        "cisa-advisories": False,
+        # CISA-Alerts (alerts.xml, kuratiert): KEV-Wrapper gefiltert, Rest = HIGH (S002).
+        "cisa-advisories": True,
         "cisa-kev": True,
         "cert-bund-wid": True,
         "buerger-cert": True,
