@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -68,7 +69,7 @@ class _Worker(threading.Thread):
         self,
         config: dict[str, Any],
         state: State,
-        out_queue: "queue.Queue[Entry]",
+        out_queue: "queue.Queue",
         poll_now: threading.Event,
     ) -> None:
         super().__init__(daemon=True)
@@ -77,13 +78,18 @@ class _Worker(threading.Thread):
         self.queue = out_queue
         self.poll_now = poll_now
         self.interval = int(config.get("poll_interval_seconds", 300))
+        self._new_count = 0  # gemeldete Einträge im laufenden Poll
 
     def run(self) -> None:
         while True:
+            self._new_count = 0
             try:
                 poll_once(self.config, self.state, notifier=self._notifier)
             except Exception as exc:  # Worker darf nie sterben (Regel #3)
                 log.error("Poll-Zyklus fehlgeschlagen: %s", exc)
+            # Poll fertig -> Zeitpunkt + Anzahl neuer Meldungen an den Main-Thread
+            # (damit die Status-Zeile auch bei "nichts Neues" Feedback zeigt).
+            self.queue.put(("poll_done", datetime.now(), self._new_count))
             # Bis zum nächsten Takt warten ODER bis "Jetzt prüfen" das Event setzt.
             self.poll_now.wait(timeout=self.interval)
             self.poll_now.clear()
@@ -91,9 +97,10 @@ class _Worker(threading.Thread):
     def _notifier(self, entry: Entry) -> bool:
         """Eigener notifier: OS-Notification wie gehabt UND Eintrag in die Queue."""
         sent = notify_entry(entry)
+        self._new_count += 1
         # Entry wurde gemeldet (HIGH/MEDIUM, severity gesetzt) -> an Menüleiste geben,
         # unabhängig davon, ob die OS-Notification technisch durchkam.
-        self.queue.put(entry)
+        self.queue.put(("entry", entry))
         return sent
 
 
@@ -104,10 +111,12 @@ class SelasWatcherApp(rumps.App):
         super().__init__(APP_NAME, icon=TEMPLATE_ICON, template=True, quit_button=None)
         self.config = config
         self.state = state
-        self.queue: "queue.Queue[Entry]" = queue.Queue()
+        self.queue: "queue.Queue" = queue.Queue()
         self.poll_now = threading.Event()  # "Jetzt prüfen" weckt den Worker
         self._recent: list[Entry] = []     # neueste zuerst, max MAX_RECENT
         self._unread_high = 0
+        self._last_checked: datetime | None = None
+        self._status_title = "Noch nicht geprüft"
         self._menu_delegate: _MenuOpenDelegate | None = None
         self._timer: rumps.Timer | None = None
         self._build_menu()
@@ -123,6 +132,9 @@ class SelasWatcherApp(rumps.App):
     def _build_menu(self) -> None:
         """Menü komplett neu aufbauen (nur im Main-Thread aufrufen)."""
         self.menu.clear()
+        # Status-Zeile (ohne callback = deaktiviert/Info) — gibt "Jetzt prüfen" Feedback.
+        self.menu.add(rumps.MenuItem(self._status_title))
+        self.menu.add(rumps.separator)
         # Recent-Einträge (neueste zuerst). Zero-Width-Space-Suffix hält die
         # Menü-Keys eindeutig, falls zwei Zeilen denselben Text ergeben.
         for i, entry in enumerate(self._recent):
@@ -131,6 +143,7 @@ class SelasWatcherApp(rumps.App):
         if self._recent:
             self.menu.add(rumps.separator)
         self.menu.add(rumps.MenuItem("Jetzt prüfen", callback=self._on_check_now))
+        self.menu.add(rumps.MenuItem("Testalarm (rotes Icon + Ton prüfen)", callback=self._on_test_alarm))
         self.menu.add(rumps.MenuItem("Alle als gelesen markieren", callback=self._on_mark_all_read))
         self.menu.add(rumps.MenuItem("Konfiguration öffnen", callback=self._on_open_config))
         self.menu.add(rumps.separator)
@@ -168,18 +181,25 @@ class SelasWatcherApp(rumps.App):
         self._timer.start()
 
     def _drain(self, _timer: rumps.Timer) -> None:
-        """Queue leeren, Recent-Liste + Icon/Menü aktualisieren (Main-Thread)."""
-        added = False
+        """Queue leeren, Recent-Liste/Status + Icon/Menü aktualisieren (Main-Thread)."""
+        changed = False
         try:
             while True:
-                entry = self.queue.get_nowait()
-                self._recent.insert(0, entry)
-                if entry.severity == HIGH:
-                    self._unread_high += 1
-                added = True
+                msg = self.queue.get_nowait()
+                if msg[0] == "entry":
+                    entry = msg[1]
+                    self._recent.insert(0, entry)
+                    if entry.severity == HIGH:
+                        self._unread_high += 1
+                elif msg[0] == "poll_done":
+                    when, new_count = msg[1], msg[2]
+                    self._last_checked = when
+                    suffix = f"{new_count} neu" if new_count else "nichts Neues"
+                    self._status_title = f"Zuletzt geprüft: {when:%H:%M:%S} · {suffix}"
+                changed = True
         except queue.Empty:
             pass
-        if added:
+        if changed:
             del self._recent[MAX_RECENT:]
             self._build_menu()
             self._refresh_alarm()
@@ -197,7 +217,27 @@ class SelasWatcherApp(rumps.App):
         return _cb
 
     def _on_check_now(self, _item: rumps.MenuItem) -> None:
-        self.poll_now.set()  # Worker sofort pollen lassen
+        self._status_title = "Prüfe…"   # sofortiges Feedback (Main-Thread)
+        self._build_menu()
+        self.poll_now.set()             # Worker sofort pollen lassen
+
+    def _on_test_alarm(self, _item: rumps.MenuItem) -> None:
+        """Synthetischen HIGH-Treffer einspeisen: Test-Notification + rotes Icon.
+        Zum Prüfen, dass Alarm-Zustand und Ton funktionieren (ohne echten Vorfall)."""
+        sample = Entry(
+            source_id="test",
+            source_name="SelasWATCHER Test",
+            dedup_id="testalarm",
+            title="TESTALARM — so sieht eine HIGH-Meldung aus",
+            url="",
+            summary="Nur ein Test. Icon wird rot, Ton spielt. Menü öffnen setzt zurück.",
+            published=None,
+            lang="de",
+            severity=HIGH,
+            matched_terms=["test"],
+        )
+        notify_entry(sample)               # OS-Notification mit Ton
+        self.queue.put(("entry", sample))  # -> Menüliste + rotes Icon via _drain
 
     def _on_mark_all_read(self, _item: rumps.MenuItem) -> None:
         self._reset_alarm()
