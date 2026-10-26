@@ -20,6 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "poll_interval_seconds": 300,
     # Quellen an/aus. Nicht gelistete Quellen gelten als aktiviert.
     "sources": {
+        "bacs": True,  # BACS/NCSC "Aktuelle Vorfälle" via HTML-Polling (always_high)
         "inside-it": True,
         "20min": True,
         # CISA-Alerts (alerts.xml, kuratiert): KEV-Wrapper gefiltert, Rest = HIGH (S002).

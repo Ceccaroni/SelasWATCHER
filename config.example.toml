@@ -7,11 +7,13 @@ poll_interval_seconds = 300
 
 # Quellen an/aus. Nicht gelistete Quellen gelten als aktiviert.
 [sources]
+# BACS/NCSC "Aktuelle Vorfälle": kein Feed -> HTML-Polling (always_high, kuratierte CH-Behörde).
+"bacs" = true
 "inside-it" = true
 "20min" = true
-# cisa-advisories: RSS-Feed WAF-geblockt (HTTP 403, auch mit Browser-UA), S001 verifiziert.
-# Deaktiviert; CISA KEV (unten) deckt das kritische "aktiv ausgenutzt"-Signal ab. Revisit Phase 4.
-"cisa-advisories" = false
+# cisa-advisories: reaktiviert (S003). alerts.xml (kuratiert, kein ICS-Lärm), KEV-Wrapper
+# gefiltert, Rest = always_high. WAF-403 per Browser-UA umgangen (quellenspezifische Header).
+"cisa-advisories" = true
 "cisa-kev" = true
 "cert-bund-wid" = true
 "buerger-cert" = true

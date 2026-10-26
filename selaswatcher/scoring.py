@@ -47,11 +47,11 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
 
     source = SOURCES.get(entry.source_id)
 
-    # Kuratierte Dringlichkeits-Quelle (z. B. CISA-Alerts nach Wrapper-Filter): jeder
-    # Eintrag ist per Definition ein "sofort handeln"-Signal -> HIGH (konzept.md §6).
+    # Kuratierte Dringlichkeits-Quelle (CISA-Alerts, BACS): jeder Eintrag ist per
+    # Definition ein "sofort handeln"-Signal -> HIGH (konzept.md §6).
     if source and source.always_high:
         entry.severity = HIGH
-        entry.matched_terms = ["cisa-alert"]
+        entry.matched_terms = ["always_high"]
         return
 
     # Vuln-Datenbank (Firehose): nur melden, wenn der EIGENE Stack betroffen ist.

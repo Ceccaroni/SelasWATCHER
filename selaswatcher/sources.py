@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from html import unescape
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 import feedparser
 import requests
@@ -63,10 +64,15 @@ class Source:
     headers: dict[str, str] | None = None  # quellenspezifische HTTP-Header (z. B. WAF-Umgehung)
 
 
-# Reihenfolge wie konzept.md §5 (ohne BACS = Phase 4).
+# Reihenfolge wie konzept.md §5.
 SOURCES: dict[str, Source] = {
     s.id: s
     for s in [
+        # BACS/NCSC = autoritative CH-Quelle (Regel #6). Kein Feed -> HTML-Polling der
+        # Seite "Aktuelle Vorfälle" (server-gerendert, reguläres Card-Markup, S004
+        # real verifiziert). Kuratiert + niederfrequent (~1/Monat) -> always_high, damit
+        # Gründungsfälle wie die PHP-Warnung sicher ein Banner erzeugen (konzept.md §6.5).
+        Source("bacs", "BACS", "html", "https://www.bacs.admin.ch/de/aktuelle-vorfaelle", "de", True, always_high=True),
         Source("inside-it", "inside-it.ch", "rss", "https://www.inside-it.ch/rss.xml", "de", False),
         Source("20min", "20min Digital", "rss", "https://partner-feeds.20min.ch/rss/20minuten/digital", "de-ch", False),
         # alerts.xml = CISAs kuratierte übergreifende Alerts (kein ICS-Lärm wie all.xml).
@@ -315,6 +321,90 @@ def _fetch_github(source: Source, state: State, config: dict[str, Any]) -> list[
     return entries
 
 
+# --- HTML-Adapter (BACS, kein Feed) ---------------------------------------
+
+_BACS_MONTHS = {
+    "januar": 1, "februar": 2, "märz": 3, "april": 4, "mai": 5, "juni": 6,
+    "juli": 7, "august": 8, "september": 9, "oktober": 10, "november": 11, "dezember": 12,
+}
+_BACS_DATE_TEXT_RE = re.compile(r"(\d{1,2})\.\s*([A-Za-zäöüÄÖÜ]+)\s*(\d{4})")
+# Pro "Aktuelle Vorfälle"-Card: Container-Start, Datum, Titel, Detail-Link, Summary.
+_BACS_CARD_RE = re.compile(r'class="card card--default')
+_BACS_DATE_RE = re.compile(r'meta-info__item">([^<]+)<')
+_BACS_TITLE_RE = re.compile(r"<h3[^>]*>(.*?)</h3>", re.S)
+_BACS_HREF_RE = re.compile(r'card__footer__action"><a[^>]*href="(/[^"]+)"')
+_BACS_DESC_RE = re.compile(r'card__description">(.*?)</div>', re.S)
+
+
+def _parse_de_date(text: str | None) -> datetime | None:
+    """Deutsches Datum 'TT. Monat JJJJ' -> datetime (UTC, Mitternacht)."""
+    if not text:
+        return None
+    m = _BACS_DATE_TEXT_RE.search(text)
+    if not m:
+        return None
+    month = _BACS_MONTHS.get(m.group(2).lower())
+    if not month:
+        return None
+    try:
+        return datetime(int(m.group(3)), month, int(m.group(1)), tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _fetch_bacs(source: Source, state: State) -> list[Entry]:
+    """BACS 'Aktuelle Vorfälle' — HTML-Polling (kein RSS/Atom vorhanden).
+
+    Seite ist server-gerendert (Nuxt-SSR) mit regulärem Card-Markup. Pro Card:
+    Datum (meta-info__item), Titel (h3), relativer Detail-Link
+    (card__footer__action), Summary (card__description). dedup_id = absolute
+    Detail-URL. Kein ETag/Last-Modified -> kein conditional GET (harmlos).
+
+    Robustheit (Regel #3): liefert die Seite echten Inhalt (HTTP 200, grosser
+    Body), parst aber 0 Einträge, ist das Markup geändert -> bewusst Exception,
+    damit der Health-Watcher (poller) den stillen Ausfall meldet, statt ihn als
+    "gesund, 0 neu" zu verschlucken.
+    """
+    st = state.source_state(source.id)
+    resp = _http_get(source.url, st, extra_headers=source.headers)
+    if resp.status_code == 304:
+        log.info("%s: 304 Not Modified", source.id)
+        return []
+    resp.raise_for_status()
+    html = resp.text
+
+    base = f"{urlparse(source.url).scheme}://{urlparse(source.url).netloc}"
+    starts = [m.start() for m in _BACS_CARD_RE.finditer(html)]
+    entries: list[Entry] = []
+    for i, pos in enumerate(starts):
+        seg = html[pos : (starts[i + 1] if i + 1 < len(starts) else len(html))]
+        href_m = _BACS_HREF_RE.search(seg)
+        title_m = _BACS_TITLE_RE.search(seg)
+        if not href_m or not title_m:
+            continue
+        title = clean_summary(title_m.group(1), limit=300)
+        url = safe_url(urljoin(base, href_m.group(1)))
+        if not title or not url:
+            continue
+        date_m = _BACS_DATE_RE.search(seg)
+        desc_m = _BACS_DESC_RE.search(seg)
+        entries.append(
+            Entry(
+                source_id=source.id,
+                source_name=source.name,
+                dedup_id=url,
+                title=title,
+                url=url,
+                summary=clean_summary(desc_m.group(1) if desc_m else ""),
+                published=_parse_de_date(date_m.group(1) if date_m else None),
+                lang=source.lang,
+            )
+        )
+    if not entries and len(html) > 2000:
+        raise ValueError(f"BACS: 0 Einträge aus {len(html)} Byte HTML — Markup geändert?")
+    return entries
+
+
 # --- Dispatch --------------------------------------------------------------
 
 
@@ -322,6 +412,9 @@ def fetch_source(source: Source, state: State, config: dict[str, Any]) -> list[E
     """Holt alle aktuell vorhandenen Einträge einer Quelle (ohne Dedup/Scoring)."""
     if source.type in ("rss", "atom"):
         return _fetch_feed(source, state)
+    if source.type == "html":
+        if source.id == "bacs":
+            return _fetch_bacs(source, state)
     if source.type == "json":
         if source.id == "cisa-kev":
             return _fetch_cisa_kev(source, state)

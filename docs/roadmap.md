@@ -24,7 +24,7 @@ Repo-Grundgerüst nach Selas-Konventionen. Konzept + offene Entscheidungen dokum
 - `README.md` §Betrieb: Einrichten/Start/Autostart/Config/Log dokumentiert.
 
 ## Phase 4 — Feinschliff (nach Bedarf)
-- **BACS HTML-Polling** (eigenes Ticket): schonendes Scraping der Vorfall-Liste, da kein Feed.
+- ✅ **BACS HTML-Polling** (S004): Typ `html` + `_fetch_bacs`, server-gerendertes Card-Markup, stdlib-Parsing, `always_high`. Erledigt.
 - **CISA Advisories** alternativen Fetch-Weg prüfen (RSS `all.xml` ist WAF-geblockt/403).
 - **Härtung:** fehlgeschlagene HIGH-Notification nicht still als „gesehen" verbuchen (Retry/Alarm); `seen`-Liste deckeln/prunen (wächst sonst unbegrenzt); NVD/GitHub-Pagination falls Baseline-Fenster >1 Seite nötig.
 - Fehlalarm-Tuning nach echtem Betrieb (Regel #2).
