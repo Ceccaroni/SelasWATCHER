@@ -28,4 +28,5 @@ Repo-Grundgerüst nach Selas-Konventionen. Konzept + offene Entscheidungen dokum
 - **CISA Advisories** alternativen Fetch-Weg prüfen (RSS `all.xml` ist WAF-geblockt/403).
 - **Härtung:** fehlgeschlagene HIGH-Notification nicht still als „gesehen" verbuchen (Retry/Alarm); `seen`-Liste deckeln/prunen (wächst sonst unbegrenzt); NVD/GitHub-Pagination falls Baseline-Fenster >1 Seite nötig.
 - Fehlalarm-Tuning nach echtem Betrieb (Regel #2).
+- Gebrandete Notifications (Absender „SelasWATCHER") via py2app-Bundle. **Klickbare Banner sind bereits gelöst** (terminal-notifier, `scripts/install-terminal-notifier.sh`; Fallback osascript).
 - Optional: zusätzliche Quellen (The Hacker News, Netzwoche …), NVD-API-Key via Env, optionaler E-Mail-/Slack-Fallback.

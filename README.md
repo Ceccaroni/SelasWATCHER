@@ -74,7 +74,17 @@ zu öffnen (bzw. `~/.selaswatcher/` im Finder, falls noch keine existiert).
 ```
 (Nur im Autostart-Betrieb geschrieben; manuell gestartet geht das Log nach stderr.)
 
-### Hinweis zu Notifications
-Im MVP laufen die nativen Notifications über `osascript` und erscheinen daher als
-Absender „Script-Editor". Gebrandete Notifications („SelasWATCHER") kommen später
-mit einem eigenen `py2app`-Bundle (Phase 4).
+### Notifications (klickbare Banner)
+SelasWATCHER meldet bevorzugt über **`terminal-notifier`** — dann ist das **Banner
+klickbar** und öffnet den Artikel direkt im Standardbrowser. Ist es nicht vorhanden
+oder (noch) nicht berechtigt, fällt die Meldung automatisch auf `osascript` zurück
+(nicht klickbar, aber zuverlässig — es geht nie eine Meldung verloren).
+
+Installieren (ohne Homebrew/Compiler, lädt das vorkompilierte offizielle Release):
+```bash
+./scripts/install-terminal-notifier.sh      # -> ~/.selaswatcher/terminal-notifier.app
+```
+**Einmalige Berechtigung:** Beim ersten Alarm verlangt macOS die Freigabe.
+Systemeinstellungen → **Mitteilungen** → **terminal-notifier** → *Mitteilungen erlauben*.
+Danach sind die Banner klickbar. (Der Absender heißt „terminal-notifier"; ein
+gebrandeter Absender „SelasWATCHER" käme mit einem `py2app`-Bundle — Phase 4.)
