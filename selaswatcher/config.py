@@ -40,6 +40,14 @@ DEFAULTS: dict[str, Any] = {
         # Großzügig über jedem Feed-Fenster -> kein Re-Alarm alter Einträge. 0 = aus.
         "seen_cap": 2000,
     },
+    "health": {
+        # Wächter-fürs-Wächter: Eine Quelle, die so viele Polls IN FOLGE fehlschlägt,
+        # meldet EINMAL einen HIGH-Banner ("Quelle X fällt aus") — damit ein stiller
+        # Dauerausfall (403, kaputter Feed) nicht unbemerkt Warnungen verschluckt.
+        # Bei Erholung still zurückgesetzt und neu scharf. 6 ≈ 30 Min (5-Min-Takt),
+        # filtert kurze Netz-Blips (Regel #3). 0 = Wächter aus.
+        "fail_threshold": 6,
+    },
     "inventory": {
         # Repo-Verzeichnisse mit package-lock.json -> definiert, welche Pakete du nutzt.
         # GitHub-Advisories werden dagegen gematcht (nur echte Treffer -> HIGH).

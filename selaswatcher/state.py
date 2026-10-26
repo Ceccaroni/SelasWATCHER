@@ -109,6 +109,29 @@ class State:
         when = when or datetime.now(timezone.utc)
         self.source_state(source_id)["last_run"] = when.isoformat()
 
+    # --- Quellen-Gesundheit (Wächter-fürs-Wächter) ------------------------
+
+    def note_fetch_ok(self, source_id: str) -> int:
+        """Erfolgreichen Abruf verbuchen: Fehlerzähler + Warn-Flag zurücksetzen.
+        Gibt den vorherigen Fehler-Streak zurück (>0 => Quelle war am Ausfallen)."""
+        st = self.source_state(source_id)
+        prev = int(st.get("fail_streak", 0))
+        st["fail_streak"] = 0
+        st["health_warned"] = False
+        return prev
+
+    def note_fetch_fail(self, source_id: str) -> int:
+        """Fehlgeschlagenen Abruf verbuchen; gibt den neuen Fehler-Streak zurück."""
+        st = self.source_state(source_id)
+        st["fail_streak"] = int(st.get("fail_streak", 0)) + 1
+        return st["fail_streak"]
+
+    def health_warned(self, source_id: str) -> bool:
+        return bool(self.source_state(source_id).get("health_warned", False))
+
+    def set_health_warned(self, source_id: str, value: bool = True) -> None:
+        self.source_state(source_id)["health_warned"] = value
+
     # --- Dedup-Logik -------------------------------------------------------
 
     def is_new(self, source_id: str, entry: Entry) -> bool:

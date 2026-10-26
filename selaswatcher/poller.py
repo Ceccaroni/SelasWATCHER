@@ -8,15 +8,42 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from .model import HIGH, MEDIUM, Entry
 from .notify import notify_entry
 from .scoring import score
-from .sources import enabled_sources, fetch_source
+from .sources import Source, enabled_sources, fetch_source
 from .state import DEFAULT_SEEN_CAP, State
 
 log = logging.getLogger(__name__)
+
+# Wächter-fürs-Wächter: so viele Fehlschläge IN FOLGE -> einmal HIGH-Alarm,
+# dass eine Quelle still ausfällt. Überschreibbar via [health] fail_threshold.
+DEFAULT_FAIL_THRESHOLD = 6
+
+
+def _health_entry(source: Source, streak: int, error: str | None) -> Entry:
+    """Synthetischer HIGH-Eintrag: 'Quelle X fällt aus'. Geht über denselben
+    Notifier-Weg wie echte Treffer (Banner + rotes Menü-Icon). URL leer -> nicht
+    klickbar; dedup_id mit Minuten-Stempel, damit ein SPÄTERER Ausfall erneut meldet."""
+    now = datetime.now(timezone.utc)
+    return Entry(
+        source_id="health",
+        source_name="SelasWATCHER",
+        dedup_id=f"health:{source.id}:{now:%Y%m%d%H%M}",
+        title=f"⚠ Quelle {source.name!r} fällt aus ({streak} Polls in Folge)",
+        url="",
+        summary=(
+            f"Seit {streak} Abrufen kein Erfolg (letzter Fehler: {error}). "
+            f"Der Watcher könnte über diese Quelle Warnungen verpassen — bitte prüfen."
+        ),
+        published=now,
+        lang="de",
+        severity=HIGH,
+        matched_terms=["health"],
+    )
 
 
 @dataclass
@@ -28,11 +55,39 @@ class SourceResult:
     medium: int = 0
     failed_high: int = 0  # HIGH, deren Zustellung scheiterte -> Retry (nicht als gesehen verbucht)
     error: str | None = None
+    health_alarm: bool = False  # Quelle fiel lange genug aus -> Health-Alarm gemeldet
 
 
 @dataclass
 class PollResult:
     results: list[SourceResult] = field(default_factory=list)
+
+
+def _fail_threshold(config: dict[str, Any]) -> int:
+    return int(config.get("health", {}).get("fail_threshold", DEFAULT_FAIL_THRESHOLD))
+
+
+def _maybe_health_alarm(
+    source: Source,
+    state: State,
+    config: dict[str, Any],
+    notifier: Callable[[Entry], bool],
+    error: str | None,
+) -> bool:
+    """Fehlschlag verbuchen; ab `fail_threshold` Polls in Folge EINMAL Alarm melden.
+    Bei gescheiterter Zustellung nicht als gewarnt markieren -> Retry nächster Poll
+    (Regel #1). Gibt True zurück, wenn in diesem Poll ein Health-Alarm gesendet wurde."""
+    threshold = _fail_threshold(config)
+    streak = state.note_fetch_fail(source.id)
+    if threshold <= 0 or streak < threshold or state.health_warned(source.id):
+        return False
+    if notifier(_health_entry(source, streak, error)):
+        state.set_health_warned(source.id, True)
+        log.error("Quelle %s seit %d Polls down -> Health-Alarm gemeldet", source.id, streak)
+        return True
+    log.error("Quelle %s seit %d Polls down -> Health-Alarm-Zustellung fehlgeschlagen (Retry)",
+              source.id, streak)
+    return False
 
 
 def poll_once(
@@ -85,9 +140,15 @@ def poll_once(
                 state.mark_seen(source.id, to_mark)
 
             state.set_last_run(source.id)
+            # Gesund: Fehlerzähler + Health-Warnung zurücksetzen (Erholung still loggen).
+            prev_streak = state.note_fetch_ok(source.id)
+            if _fail_threshold(config) > 0 and prev_streak >= _fail_threshold(config):
+                log.info("Quelle %s wieder erreichbar (war %d Polls down)", source.id, prev_streak)
         except Exception as exc:  # bewusst breit: Quelle isolieren (Regel #3)
             res.error = f"{type(exc).__name__}: {exc}"
             log.warning("Quelle %s fehlgeschlagen: %s", source.id, res.error)
+            # Wächter-fürs-Wächter: Dauerausfall einmal laut melden (Regel #1).
+            res.health_alarm = _maybe_health_alarm(source, state, config, notifier, res.error)
 
         poll.results.append(res)
 
@@ -103,7 +164,10 @@ def format_summary(poll: PollResult) -> str:
     lines = ["Quelle                geholt   neu  gemeldet"]
     for r in poll.results:
         if r.error:
-            lines.append(f"{r.source_id:<20}  FEHLER: {r.error}")
+            line = f"{r.source_id:<20}  FEHLER: {r.error}"
+            if r.health_alarm:
+                line += "  🚨 Health-Alarm gemeldet (Dauerausfall)"
+            lines.append(line)
         else:
             line = (
                 f"{r.source_id:<20} {r.fetched:>6} {r.new:>5}  "
