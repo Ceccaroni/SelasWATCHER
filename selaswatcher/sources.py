@@ -41,6 +41,7 @@ class Source:
     url: str
     lang: str
     security: bool  # reine Security-Quelle (fürs Scoring-Baseline)
+    vulndb: bool = False  # Vuln-Datenbank (Firehose) -> nur bei Watchlist-Treffer melden
 
 
 # Reihenfolge wie konzept.md §5 (ohne BACS = Phase 4).
@@ -50,13 +51,13 @@ SOURCES: dict[str, Source] = {
         Source("inside-it", "inside-it.ch", "rss", "https://www.inside-it.ch/rss.xml", "de", False),
         Source("20min", "20min Digital", "rss", "https://partner-feeds.20min.ch/rss/20minuten/digital", "de-ch", False),
         Source("cisa-advisories", "CISA Advisories", "rss", "https://www.cisa.gov/cybersecurity-advisories/all.xml", "en", True),
-        Source("cisa-kev", "CISA KEV", "json", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "en", True),
+        Source("cisa-kev", "CISA KEV", "json", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "en", True, vulndb=True),
         Source("cert-bund-wid", "CERT-Bund WID", "rss", "https://wid.cert-bund.de/content/public/securityAdvisory/rss", "de", True),
         Source("buerger-cert", "Bürger-CERT (BSI)", "rss", "https://wid.cert-bund.de/content/public/buergercert/rss", "de", True),
         Source("heise-security", "heise Security", "atom", "https://www.heise.de/security/feed.xml", "de", True),
         Source("bleepingcomputer", "BleepingComputer", "rss", "https://www.bleepingcomputer.com/feed/", "en", True),
-        Source("nvd", "NVD (CVE)", "json", "https://services.nvd.nist.gov/rest/json/cves/2.0", "en", True),
-        Source("github-advisory", "GitHub Advisory DB", "json", "https://api.github.com/advisories", "en", True),
+        Source("nvd", "NVD (CVE)", "json", "https://services.nvd.nist.gov/rest/json/cves/2.0", "en", True, vulndb=True),
+        Source("github-advisory", "GitHub Advisory DB", "json", "https://api.github.com/advisories", "en", True, vulndb=True),
     ]
 }
 

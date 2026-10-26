@@ -18,7 +18,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .model import HIGH, MEDIUM, Entry
+from .model import HIGH, Entry
 
 log = logging.getLogger(__name__)
 
@@ -61,9 +61,11 @@ def _parts(entry: Entry) -> tuple[str, str, str]:
 
 
 def notify_entry(entry: Entry) -> bool:
-    """Feuert eine Notification abhängig von entry.severity. True, wenn gesendet.
+    """Feuert ein Banner NUR für HIGH (drop-everything: eigener Stack oder kritisch).
+    MEDIUM/LOW erzeugen bewusst kein Banner — sie landen stumm in der Menüliste
+    (Regel #2: keine Alarm-Flut). True, wenn ein Banner gesendet wurde.
     Erst terminal-notifier (klickbar), bei Fehlschlag Fallback auf osascript."""
-    if entry.severity not in (HIGH, MEDIUM):
+    if entry.severity != HIGH:
         return False
 
     if TERMINAL_NOTIFIER and _notify_terminal(entry):
