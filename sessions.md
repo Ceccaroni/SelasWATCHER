@@ -3,11 +3,11 @@
 > Max. ~3 kompakte Einträge. Ältestes beim neuen Eintrag im Volltext nach `archive.md`. Details ins Ticket-File.
 
 ## S003 — 2026-10-26 — CISA-Advisories reaktiviert (alerts.xml + Wrapper-Filter + always_high)
-- **403/WAF aus S001 ist weg:** `all.xml` liefert wieder 200 (jeder UA). Aber `all.xml` ist zu ~77 % ICS-/OT-Advisories (Siemens etc.) — Lärm für Adrians Stack — und erzeugt sogar Fehlalarm-HIGH (ICS-Summary mit „node.js"/„rce"). Real verifiziert: echtes Scoring gegen die 30 Live-Items.
+- **403/WAF aus S001 war header-getriggert, nicht die URL:** CISAs Akamai-WAF blockt `python-requests` mit `SelasWATCHER/0.1` (403), lässt aber Browser-UA + vollen Accept-Header-Satz durch (`_CISA_HEADERS`, nur diese Quelle, 5/5 stabil). curl kam immer durch → die S001-curl-Verifikation war irreführend. Inhaltlich ist `all.xml` zudem zu ~77 % ICS-/OT-Advisories (Siemens etc.) — Lärm für Adrians Stack — und erzeugt Fehlalarm-HIGH (ICS-Summary mit „node.js"/„rce").
 - **Lösung = dedizierter `alerts.xml`** (107 KB statt 5.7 MB): nur CISAs kuratierte Alerts. Davon ~26/30 „CISA Adds … to Catalog"-KEV-Wrapper → im Fetcher gefiltert (`_CISA_KEV_WRAPPER_RE`), weil `cisa-kev` (JSON) die paketgenau abdeckt. Rest = ~4 echte Alerts/6 Wochen (PHP, BeyondTrust, Ivanti, Citrix).
 - **Entscheid (Adrian): CISA-Alerts = immer HIGH** — neues `Source.always_high`-Flag, `scoring.score` kurzschließt darauf → jeder verbleibende Alert bannert. Damit hätte die PHP-Krise (Gründungsfall) ein Banner erzeugt. Neue „immer HIGH"-Klasse neben der Watchlist. → `docs/konzept.md` §6.5, CLAUDE.md Entscheidungs-Log.
-- **Verifiziert** über den realen `_fetch_feed`+`score`-Pfad (HTTP gemockt, Temp-State): 30 → 4, alle HIGH, kein Wrapper, PHP dabei. Regression: andere Quellen (heise/BC/KEV) scoren unverändert. Import-/Smoke-OK.
-- **Noch nicht live:** Code committet, aber LaunchAgent läuft bis Reload alten Code. **Beim Reload feuern die 4 CISA-Alerts einmalig gleichzeitig** (alle neu) — erwartbar, kein Fehler. Reload/Push auf Adrians Wort.
+- **Verifiziert gegen das echte Netz** über den realen `_fetch_feed`+`score`-Pfad (Temp-State): 30 → 4, alle HIGH, kein Wrapper, PHP dabei. Regression: andere Quellen (heise/BC/KEV) scoren unverändert, nur `cisa-advisories` bekommt die Sonder-Header. Lehre (Regel #5): WAF-Quellen gegen echtes `requests` testen, nicht curl/Mock.
+- **LIVE:** gepusht + LaunchAgent reloaded (`launchctl kickstart -k`). Der erste Live-Poll mit `SelasWATCHER/0.1` lief ins 403 → Header-Fix nachgeschoben. Beim ersten erfolgreichen Poll feuern die 4 CISA-Alerts einmalig gleichzeitig (alle neu) — erwartbar.
 - Offen (TICKET-004): PHP-Loudness via `high_keywords` (Fehlalarm-Tuning), py2app, BACS HTML.
 
 ## S002 — 2026-10-26 — Phase-4-Härtung: Notify-Fail-Retry + seen-Cap

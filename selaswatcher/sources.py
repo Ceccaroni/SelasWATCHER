@@ -25,6 +25,20 @@ log = logging.getLogger(__name__)
 USER_AGENT = "SelasWATCHER/0.1"
 HTTP_TIMEOUT = 15  # Sekunden
 
+# CISAs WAF (Akamai) blockt den Default-UA mit 403, lässt aber einen Browser-UA
+# MIT vollständigem Accept-Header-Satz durch (S003 empirisch, 5/5 stabil). Nur für
+# diese eine Quelle — die übrigen Feeds sind mit dem Default-UA zufrieden.
+_CISA_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+    ),
+    "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+}
+
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _WID_RE = re.compile(r"WID-SEC-\d{4}-\d+")
@@ -46,6 +60,7 @@ class Source:
     security: bool  # reine Security-Quelle (fürs Scoring-Baseline)
     vulndb: bool = False  # Vuln-Datenbank (Firehose) -> nur bei Watchlist-Treffer melden
     always_high: bool = False  # kuratierte Dringlichkeits-Quelle -> jeder Eintrag HIGH
+    headers: dict[str, str] | None = None  # quellenspezifische HTTP-Header (z. B. WAF-Umgehung)
 
 
 # Reihenfolge wie konzept.md §5 (ohne BACS = Phase 4).
@@ -56,8 +71,8 @@ SOURCES: dict[str, Source] = {
         Source("20min", "20min Digital", "rss", "https://partner-feeds.20min.ch/rss/20minuten/digital", "de-ch", False),
         # alerts.xml = CISAs kuratierte übergreifende Alerts (kein ICS-Lärm wie all.xml).
         # KEV-Wrapper-Items werden in _fetch_feed gefiltert (deckt cisa-kev ab); der Rest
-        # ist CISAs "sofort handeln"-Stream (~4/6 Wochen) -> always_high (konzept.md §6, S002).
-        Source("cisa-advisories", "CISA Advisories", "rss", "https://www.cisa.gov/cybersecurity-advisories/alerts.xml", "en", True, always_high=True),
+        # ist CISAs "sofort handeln"-Stream (~4/6 Wochen) -> always_high (konzept.md §6, S003).
+        Source("cisa-advisories", "CISA Advisories", "rss", "https://www.cisa.gov/cybersecurity-advisories/alerts.xml", "en", True, always_high=True, headers=_CISA_HEADERS),
         Source("cisa-kev", "CISA KEV", "json", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "en", True, vulndb=True),
         Source("cert-bund-wid", "CERT-Bund WID", "rss", "https://wid.cert-bund.de/content/public/securityAdvisory/rss", "de", True),
         Source("buerger-cert", "Bürger-CERT (BSI)", "rss", "https://wid.cert-bund.de/content/public/buergercert/rss", "de", True),
@@ -138,7 +153,7 @@ def _dedup_id_for(source: Source, item: Any) -> str:
 
 def _fetch_feed(source: Source, state: State) -> list[Entry]:
     st = state.source_state(source.id)
-    resp = _http_get(source.url, st)
+    resp = _http_get(source.url, st, extra_headers=source.headers)
     if resp.status_code == 304:
         log.info("%s: 304 Not Modified", source.id)
         return []
