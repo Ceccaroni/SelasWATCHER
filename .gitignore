@@ -15,6 +15,9 @@ state/
 seen.json
 *.local.json
 
+# Lokale Config (reale Watchlist bleibt lokal; config.example.toml ist eingecheckt)
+config.toml
+
 # Secrets (öffentliche Feeds brauchen keine; falls später doch)
 .env
 .env.*

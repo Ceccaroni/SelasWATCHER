@@ -9,11 +9,11 @@ SelasWATCHER — eigenständiges, kleines **macOS-Frühwarn-Tool**. Überwacht S
 
 > Nur Ist-Zustand (kompakt). Verlauf → `sessions.md`/`archive.md` · Tickets → `tickets/INDEX.md`.
 
-- **Phase 0 — Scaffolding + Architektur-Entscheid.** Session 001 (2026-10-26): Repo-Grundgerüst nach Selas-Konventionen angelegt, Architektur mit Adrian bestätigt. **Noch kein Code.**
-- **Bestätigte Architektur:** Menüleisten-App (Python + `feedparser` + `rumps`), Poll alle 5 Min → Dedup → Relevanz-/Schwere-Heuristik → native macOS-Notification (laut nur bei hoher Schwere; Technologie-Watchlist PHP/Next.js/Node/Supabase/Postgres/Docker/Infomaniak = immer hohe Schwere). Autostart via LaunchAgent. Quellen: inside-it.ch · BACS · 20min/digital + CISA · BSI/CERT-Bund · heise Security · BleepingComputer · NVD/CVE · GitHub Advisory. → `docs/konzept.md`
-- **Feed-URLs verifiziert** (`curl`, HTTP 200 → `docs/konzept.md` §5): 7× RSS/Atom (inside-it, 20min, CISA-Advisories, CERT-Bund WID, Bürger-CERT, heise, BleepingComputer), 3× JSON-API (CISA KEV, NVD, GitHub Advisory), **BACS ohne Feed → HTML-Polling in Phase 4.** → Fetcher braucht Typ-Adapter (rss/json/html).
-- **Nächster Schritt:** ADR zum Architektur-Entscheid (`adr-generator`) → MVP bauen ([[TICKET-001]] → TICKET-002/003). Wartet auf Adrians «bauen».
-- **Noch nichts lauffähig, kein Autostart installiert.**
+- **Phase 2 — MVP-Kern gebaut & reviewt (S001, 2026-10-26).** Repo public: https://github.com/Ceccaroni/SelasWATCHER (Branch `master`). Architektur-ADR: `docs/adr/0001`.
+- **Lauffähig (CLI):** `python -m selaswatcher {poll,watch,test-notify}`. Fetcher mit Typ-Adaptern (7 RSS/Atom + JSON: CISA KEV, NVD, GitHub), Dedup mit First-Run-Baseline (keine Altmeldungs-Flut), Schwere-Scoring (Watchlist PHP/Next.js/Node/Supabase/Postgres/Docker/Infomaniak = immer HIGH), native osascript-Notifications (HIGH laut+🔴, MEDIUM leise, LOW keine). Config in `config.toml` (gitignored) / Defaults in `config.py`. State: `~/.selaswatcher/seen.json`.
+- **End-to-End verifiziert:** `test-notify` ✓; `poll` 2. Lauf hat `cert-bund-wid: 1 neu → HIGH → Notification` real gefeuert. **`cisa-advisories` deaktiviert** (RSS 403/WAF; CISA KEV deckt ab → `docs/konzept.md` §5).
+- **Nächster Schritt → TICKET-003 (Phase 3):** Menüleisten-App (`rumps`) + Autostart (LaunchAgent) + README-Betrieb. **Erst damit läuft es dauerhaft im Hintergrund** — aktuell nur manuell per CLI, kein Autostart.
+- **Offen:** MVP noch **nicht gepusht** (wartet auf «push»); Phase-4-Härtung notiert (`docs/roadmap.md`).
 
 ## Goldene Regeln
 1. **SOFORT-Meldung ist das Kernversprechen.** Lieber eine Bedrohung einmal zu viel melden als eine verpassen. Eine verpasste echte Bedrohung ist der einzige echte Fehler.

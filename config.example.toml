@@ -1,0 +1,75 @@
+# SelasWATCHER — Beispiel-Config.
+# Kopieren nach config.toml (im CWD oder ~/.selaswatcher/) und anpassen.
+# config.toml ist in .gitignore (reale Watchlist bleibt lokal).
+# Fehlt config.toml, laufen diese Werte als eingebaute Defaults.
+
+poll_interval_seconds = 300
+
+# Quellen an/aus. Nicht gelistete Quellen gelten als aktiviert.
+[sources]
+"inside-it" = true
+"20min" = true
+# cisa-advisories: RSS-Feed WAF-geblockt (HTTP 403, auch mit Browser-UA), S001 verifiziert.
+# Deaktiviert; CISA KEV (unten) deckt das kritische "aktiv ausgenutzt"-Signal ab. Revisit Phase 4.
+"cisa-advisories" = false
+"cisa-kev" = true
+"cert-bund-wid" = true
+"buerger-cert" = true
+"heise-security" = true
+"bleepingcomputer" = true
+"nvd" = true
+"github-advisory" = true
+
+[github]
+# Ökosysteme für die GitHub Advisory DB.
+ecosystems = ["composer", "npm"]
+
+[scoring]
+# Technologie-Watchlist: Treffer in Titel/Summary => immer HIGH.
+watchlist = [
+    "php",
+    "nextjs",
+    "next.js",
+    "node",
+    "supabase",
+    "postgres",
+    "postgresql",
+    "docker",
+    "infomaniak",
+]
+
+# HIGH-Stichwörter (de + en), case-insensitive.
+high_keywords = [
+    "zero-day",
+    "0-day",
+    "actively exploited",
+    "aktiv ausgenutzt",
+    "in the wild",
+    "remote code execution",
+    "rce",
+    "emergency patch",
+    "notfall-patch",
+    "ransomware",
+    "datenleck",
+    "data breach",
+    "breach",
+    "unauthenticated",
+]
+
+# Generische Security-Keywords => MEDIUM.
+generic_keywords = [
+    "cve",
+    "vulnerability",
+    "schwachstelle",
+    "sicherheitslücke",
+    "sicherheitsupdate",
+    "exploit",
+    "advisory",
+    "patch",
+    "malware",
+    "phishing",
+    "trojan",
+    "backdoor",
+    "privilege escalation",
+    "denial of service",
+]

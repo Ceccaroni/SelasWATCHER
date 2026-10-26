@@ -57,7 +57,7 @@ Drei Optionen abgewogen:
 **Quellenspezifische Hinweise:**
 - **BACS:** Kein offizieller RSS/Atom-Feed (alle Kandidatenpfade 404, GovCERT liefert nur HTML). Nutzer wünscht die Quelle ausdrücklich → **HTML-Polling als eigenes Ticket (Phase 4).** Bis dahin ist die behördliche Autorität durch CISA + CERT-Bund abgedeckt (inhaltlich grosse Überlappung).
 - **CERT-Bund WID:** Kein `guid`; Dedup über die WID-ID (z. B. `WID-SEC-2026-4079`). Updates kommen als `[UPDATE]` mit neuem `pubDate` → `pubDate` allein ist KEIN Dedup-Schlüssel; (WID-ID + pubDate) als «neue Version» werten.
-- **CISA Advisories-Feed** ist gross (~5–6 MB) und mischt Advisories mit KEV-Alerts → ETag/Last-Modified zwingend nutzen.
+- **CISA Advisories-RSS** (`all.xml`): beim MVP-Bau (S001) als **HTTP 403 (WAF-geblockt)** verifiziert — auch mit Browser-UA, also kein Header-Problem → **Quelle deaktiviert** (`sources.cisa-advisories = false`). CISA KEV (JSON) deckt das kritische „aktiv ausgenutzt"-Signal ab. Alternativen Fetch-Weg in Phase 4 prüfen. (Feed wäre sonst ~5–6 MB → ETag zwingend.)
 - **NVD & GitHub** sind JSON-APIs mit Query-Parametern für «geändert seit» (NVD: `lastModStartDate`/`lastModEndDate`; GitHub: `per_page`/Zeitfilter). NVD empfiehlt einen API-Key gegen Rate-Limits — ggf. später via Env-Var (nicht ins Repo, `.claude/rules/security.md`).
 - **BleepingComputer:** Channel-`pubDate` = Build-Zeit → fürs «neu seit» das Item-`pubDate` verwenden.
 

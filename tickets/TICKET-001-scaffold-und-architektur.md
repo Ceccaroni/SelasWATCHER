@@ -1,6 +1,6 @@
 # TICKET-001 — Scaffolding + Architektur-Entscheid
 
-**Status:** in Arbeit (Scaffolding erledigt, Entscheid offen)
+**Status:** ✅ erledigt (S001) — siehe `DONE.md`
 **Erstellt:** 2026-10-26 (S001)
 
 ## Ziel
@@ -26,4 +26,4 @@ Repo-Grundgerüst nach Selas-Konventionen anlegen und die grundlegenden Architek
 - Folge-Tickets TICKET-002 (MVP-Kern) / TICKET-003 (Menüleiste+Betrieb) schärfen.
 
 ## Definition of Done
-Entscheide getroffen + dokumentiert ✅, Feed-URLs verifiziert ✅, ADR geschrieben ⬜, Folge-Tickets geschärft ⬜. Dann schliessen.
+Entscheide getroffen + dokumentiert ✅, Feed-URLs verifiziert ✅, ADR geschrieben ✅ (`docs/adr/0001`), Folge-Tickets geschärft ✅ (TICKET-003/004). **Erledigt.**

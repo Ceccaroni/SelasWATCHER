@@ -10,7 +10,7 @@ Repo-Grundgerüst nach Selas-Konventionen. Konzept + offene Entscheidungen dokum
 - Feed-URLs real verifiziert (`curl`, HTTP 200 + Content-Type → `docs/konzept.md` §5). Erkenntnis: 7× RSS/Atom, 3× JSON-API, BACS ohne Feed (→ HTML, Phase 4).
 - Offen: ADR zum Architektur-Entscheid (`adr-generator`).
 
-## Phase 2 — MVP Kern (~1–2 Sessions)
+## Phase 2 — MVP Kern ✅ (S001, reviewt)
 - **Fetcher mit Typ-Adaptern:** `rss`/`atom` via `feedparser`; `json` (CISA KEV, NVD, GitHub) je eigener kleiner Mapper auf gemeinsames internes Eintrags-Format. Timeout-/Fehlertoleranz pro Quelle (Regel #3).
 - Dedup über lokale State-Datei (ID-Strategie je Quelle aus §5 — Achtung CERT-Bund WID-ID, BleepingComputer Item-pubDate).
 - Relevanz-/Schwere-Scoring (Stichwort-Heuristik + Technologie-Watchlist), Schwellen aus Config.
@@ -25,5 +25,7 @@ Repo-Grundgerüst nach Selas-Konventionen. Konzept + offene Entscheidungen dokum
 
 ## Phase 4 — Feinschliff (nach Bedarf)
 - **BACS HTML-Polling** (eigenes Ticket): schonendes Scraping der Vorfall-Liste, da kein Feed.
+- **CISA Advisories** alternativen Fetch-Weg prüfen (RSS `all.xml` ist WAF-geblockt/403).
+- **Härtung:** fehlgeschlagene HIGH-Notification nicht still als „gesehen" verbuchen (Retry/Alarm); `seen`-Liste deckeln/prunen (wächst sonst unbegrenzt); NVD/GitHub-Pagination falls Baseline-Fenster >1 Seite nötig.
 - Fehlalarm-Tuning nach echtem Betrieb (Regel #2).
 - Optional: zusätzliche Quellen (The Hacker News, Netzwoche …), NVD-API-Key via Env, optionaler E-Mail-/Slack-Fallback.
