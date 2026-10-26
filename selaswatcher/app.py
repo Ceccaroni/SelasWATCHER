@@ -18,9 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-import objc
 import rumps
-from Foundation import NSObject
 
 from .config import load_config
 from .model import HIGH, Entry
@@ -46,20 +44,6 @@ DRAIN_INTERVAL = 1.0  # s — Queue-Leerung im Main-Thread
 def _truncate(text: str, limit: int) -> str:
     text = text.strip()
     return text[:limit].rstrip() + "…" if len(text) > limit else text
-
-
-class _MenuOpenDelegate(NSObject):
-    """NSMenu-Delegate: Alarm zurücksetzen, sobald der Nutzer das Menü öffnet."""
-
-    def initWithCallback_(self, callback: Callable[[], None]):  # noqa: N802 (ObjC-Selektor)
-        self = objc.super(_MenuOpenDelegate, self).init()
-        if self is None:
-            return None
-        self._callback = callback
-        return self
-
-    def menuWillOpen_(self, menu):  # noqa: N802 (ObjC-Selektor), läuft im Main-Thread
-        self._callback()
 
 
 class _Worker(threading.Thread):
@@ -117,10 +101,8 @@ class SelasWatcherApp(rumps.App):
         self._unread_high = 0
         self._last_checked: datetime | None = None
         self._status_title = "Noch nicht geprüft"
-        self._menu_delegate: _MenuOpenDelegate | None = None
         self._timer: rumps.Timer | None = None
         self._build_menu()
-        self._install_menu_open_handler()
         self._refresh_alarm()
 
     # --- Menü-Aufbau -------------------------------------------------------
@@ -148,14 +130,6 @@ class SelasWatcherApp(rumps.App):
         self.menu.add(rumps.MenuItem("Konfiguration öffnen", callback=self._on_open_config))
         self.menu.add(rumps.separator)
         self.menu.add(rumps.MenuItem("Beenden", callback=rumps.quit_application))
-
-    def _install_menu_open_handler(self) -> None:
-        """Alarm zurücksetzen, wenn das Menü geöffnet wird (NSMenu-Delegate)."""
-        try:
-            self._menu_delegate = _MenuOpenDelegate.alloc().initWithCallback_(self._reset_alarm)
-            self.menu._menu.setDelegate_(self._menu_delegate)
-        except Exception as exc:  # Fällt der Hook aus, bleiben die anderen Reset-Trigger
-            log.warning("Menü-Öffnen-Handler nicht gesetzt: %s", exc)
 
     # --- Alarm-Zustand -----------------------------------------------------
 
@@ -207,10 +181,11 @@ class SelasWatcherApp(rumps.App):
     # --- Menü-Callbacks ----------------------------------------------------
 
     def _make_open(self, entry: Entry) -> Callable[[rumps.MenuItem], None]:
+        """Klick öffnet den Artikel im Standardbrowser. Setzt den Alarm NICHT
+        zurück — der rote Zustand bleibt bis zum expliziten 'Alle als gelesen'."""
         url = entry.url
 
         def _cb(_item: rumps.MenuItem) -> None:
-            self._reset_alarm()
             if url:
                 webbrowser.open(url)
 
