@@ -36,8 +36,11 @@ TEMPLATE_ICON = str(_ICON_DIR / "selas-template.png")
 ALERT_ICON = str(_ICON_DIR / "selas-alert.png")
 
 APP_NAME = "SelasWATCHER"
-MAX_RECENT = 30       # letzte gemeldete Einträge in der Menüliste
-TITLE_LIMIT = 60      # Titel-Kürzung je Menüzeile
+# HIGH-Treffer bleiben IMMER alle in der Liste (wichtig, selten); von den stummen
+# nicht-HIGH-Zeilen (MEDIUM/LOW) nur die letzten N — sonst drängt eine MEDIUM-Flut
+# (z. B. CERT-Bund-[UPDATE]) die HIGH-Treffer aus dem Menü.
+MAX_RECENT_MEDIUM = 15  # max. nicht-HIGH-Zeilen in der Menüliste
+TITLE_LIMIT = 60        # Titel-Kürzung je Menüzeile
 DRAIN_INTERVAL = 1.0  # s — Queue-Leerung im Main-Thread
 
 
@@ -97,7 +100,7 @@ class SelasWatcherApp(rumps.App):
         self.state = state
         self.queue: "queue.Queue" = queue.Queue()
         self.poll_now = threading.Event()  # "Jetzt prüfen" weckt den Worker
-        self._recent: list[Entry] = []     # neueste zuerst, max MAX_RECENT
+        self._recent: list[Entry] = []     # neueste zuerst; via _prune_recent begrenzt
         self._unread_high = 0
         self._last_checked: datetime | None = None
         self._status_title = "Noch nicht geprüft"
@@ -174,9 +177,22 @@ class SelasWatcherApp(rumps.App):
         except queue.Empty:
             pass
         if changed:
-            del self._recent[MAX_RECENT:]
+            self._prune_recent()
             self._build_menu()
             self._refresh_alarm()
+
+    def _prune_recent(self) -> None:
+        """Alle HIGH behalten, vom Rest (MEDIUM/LOW) nur die letzten
+        MAX_RECENT_MEDIUM. `_recent` ist neueste-zuerst, Reihenfolge bleibt."""
+        kept: list[Entry] = []
+        nonhigh = 0
+        for entry in self._recent:
+            if entry.severity == HIGH:
+                kept.append(entry)
+            elif nonhigh < MAX_RECENT_MEDIUM:
+                kept.append(entry)
+                nonhigh += 1
+        self._recent = kept
 
     # --- Menü-Callbacks ----------------------------------------------------
 
