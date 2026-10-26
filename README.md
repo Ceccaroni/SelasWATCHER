@@ -63,7 +63,11 @@ Fehlt `config.toml`, laufen die eingebauten Defaults aus `selaswatcher/config.py
 
 - **Quelle an-/abschalten:** eine Zeile unter `[sources]`, z. B. `"heise-security" = false`.
 - **Watchlist erweitern:** einen Begriff in die `watchlist`-Liste unter `[scoring]`
-  aufnehmen, z. B. `"laravel"` — Treffer sind immer HIGH.
+  aufnehmen, z. B. `"redis"` — Treffer (Wortgrenze) sind immer HIGH.
+- **Deine Pakete kennen (Dependabot-Prinzip):** unter `[inventory] project_paths`
+  das/die Repo-Verzeichnis(se) mit `package-lock.json` eintragen. GitHub-Advisories
+  werden dann paketgenau gegen deine echten (auch transitiven) Abhängigkeiten
+  gematcht — Alarm nur, wenn ein tatsächlich genutztes Paket betroffen ist.
 
 Den Menüpunkt „Konfiguration öffnen" nutzen, um die aktive `config.toml` direkt
 zu öffnen (bzw. `~/.selaswatcher/` im Finder, falls noch keine existiert).

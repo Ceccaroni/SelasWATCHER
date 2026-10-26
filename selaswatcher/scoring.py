@@ -47,10 +47,21 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
 
     source = SOURCES.get(entry.source_id)
 
-    # Vuln-Datenbank: Watchlist nur gegen den TITEL (= Produktname) prüfen — die
-    # lange Beschreibung erzeugt sonst Fehltreffer (z. B. 'node' in Fortinet-Text).
-    # HIGH nur bei eigenem Stack, sonst ignorieren.
+    # Vuln-Datenbank (Firehose): nur melden, wenn der EIGENE Stack betroffen ist.
     if source and source.vulndb:
+        # Paketgenauer Abgleich (Dependabot-Prinzip): nennt die Quelle betroffene
+        # Pakete (GitHub Advisory) und ist ein Inventar konfiguriert, dann HIGH nur,
+        # wenn ein tatsächlich genutztes Paket dabei ist.
+        from .inventory import load_inventory
+
+        inv = load_inventory(config)
+        if entry.affected_packages and inv:
+            hits = sorted({p.lower() for p in entry.affected_packages} & inv)
+            entry.matched_terms = hits
+            entry.severity = HIGH if hits else LOW
+            return
+        # Fallback (KEV ohne Paketangabe, oder GitHub ohne Inventar): Watchlist
+        # nur gegen den TITEL (= Produktname) — die Beschreibung erzeugt Fehltreffer.
         wl = _word_hits(entry.title.lower(), watchlist)
         entry.matched_terms = wl
         entry.severity = HIGH if wl else LOW

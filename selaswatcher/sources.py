@@ -268,6 +268,11 @@ def _fetch_github(source: Source, state: State, config: dict[str, Any]) -> list[
                 continue
             sev = (adv.get("severity") or "").lower()
             hint = HIGH if sev in ("critical", "high") else None
+            pkgs: list[str] = []
+            for v in adv.get("vulnerabilities") or []:
+                pname = (v.get("package") or {}).get("name")
+                if pname and pname not in pkgs:
+                    pkgs.append(pname)
             entries.append(
                 Entry(
                     source_id=source.id,
@@ -279,6 +284,7 @@ def _fetch_github(source: Source, state: State, config: dict[str, Any]) -> list[
                     published=_parse_iso(adv.get("published_at")),
                     lang=source.lang,
                     severity_hint=hint,
+                    affected_packages=pkgs,
                 )
             )
     return entries

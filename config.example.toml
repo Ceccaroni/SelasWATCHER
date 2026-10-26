@@ -22,8 +22,19 @@ poll_interval_seconds = 300
 "github-advisory" = true
 
 [github]
-# Ökosysteme für die GitHub Advisory DB.
-ecosystems = ["composer", "npm"]
+# Ökosysteme für die GitHub Advisory DB (nur das genutzte).
+ecosystems = ["npm"]
+
+[inventory]
+# Welche Pakete setzt du WIRKLICH ein? Repo-Verzeichnisse mit package-lock.json.
+# GitHub-Advisories werden paketgenau dagegen gematcht (Dependabot-Prinzip):
+# Alarm nur, wenn ein tatsächlich genutztes Paket (inkl. transitiv) betroffen ist.
+# Leer = Fallback auf die Titel-Watchlist unten.
+project_paths = [
+    # "/Users/DU/Documents/REPOS/dein-projekt",
+]
+# Zusätzliche Paketnamen von Hand (falls kein Lockfile vorliegt):
+extra_packages = []
 
 [scoring]
 # Technologie-Watchlist (Wortgrenzen): Treffer => HIGH (lautes Banner).

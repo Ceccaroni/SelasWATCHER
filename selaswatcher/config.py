@@ -33,7 +33,14 @@ DEFAULTS: dict[str, Any] = {
         "github-advisory": True,
     },
     "github": {
-        "ecosystems": ["composer", "npm"],
+        "ecosystems": ["npm"],  # nur das genutzte Ökosystem (kein composer/PHP)
+    },
+    "inventory": {
+        # Repo-Verzeichnisse mit package-lock.json -> definiert, welche Pakete du nutzt.
+        # GitHub-Advisories werden dagegen gematcht (nur echte Treffer -> HIGH).
+        # Leer = Fallback auf die Titel-Watchlist. Lokal in config.toml setzen.
+        "project_paths": [],
+        "extra_packages": [],
     },
     "scoring": {
         # Technologie-Watchlist: Treffer => immer HIGH (konzept.md §6).

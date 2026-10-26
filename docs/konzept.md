@@ -29,8 +29,13 @@ Drei Optionen abgewogen:
 ## 4. Verarbeitungs-Pipeline
 1. **Poll** aller Quellen im Intervall (Vorschlag: 5 Min; pro Quelle konfigurierbar). ETag/Last-Modified nutzen, um Bandbreite/Last zu schonen.
 2. **Dedup:** Jeder Eintrag per stabiler ID (GUID/Link) gegen lokale State-Datei (`~/.selaswatcher/seen.json` o. ä.) — nur Neues wird betrachtet.
-3. **Relevanz-/Schwere-Scoring:** Stichwort-Heuristik auf Titel+Summary. Hohe Schwere: `zero-day`, `aktiv ausgenutzt / actively exploited`, `RCE`, `Notfall/emergency patch`, `Ransomware`, `Datenleck/breach`, plus Technologien, die Adrian betreffen (konfigurierbare Watchlist, z. B. `PHP`, `Next.js`, `Node`, `Supabase`, `Postgres`, `Docker`, `Infomaniak`). Mittel/niedrig: generische Security-News.
-4. **Melden:** Hohe Schwere → sofortige, laute/kritische Notification (Ton). Mittel → normale Notification. Niedrig → nur im Menü gesammelt, kein Push. (Schwellen konfigurierbar, Regel #2.)
+3. **Relevanz-/Schwere-Scoring (quellentyp-bewusst, Stand nach 52-Alarm-Flut):**
+   - **Vuln-Datenbanken** (CISA KEV, NVD, GitHub = `source.vulndb`) sind ein Firehose über ALLE Hersteller → melden nur bei eigenem Stack:
+     - **GitHub Advisory** → **paketgenauer Abgleich gegen das Inventar** (`inventory.py` liest `package-lock.json`, inkl. transitiver Pakete): HIGH nur, wenn ein tatsächlich genutztes Paket betroffen ist (Dependabot-Prinzip), sonst ignoriert.
+     - **CISA KEV** → Infra-Watchlist nur gegen den **Titel** (Produktname), sonst ignoriert.
+     - **NVD** → deaktiviert (zu laut; Titel = Beschreibungstext).
+   - **News-Quellen** (inside-it, 20min, heise, CERT-Bund, BleepingComputer): HIGH bei Infra-Watchlist (next.js/node.js/supabase/postgres(ql)/docker/infomaniak) **oder** Kritisch-Keyword (zero-day/aktiv ausgenutzt/RCE/Ransomware/breach …) — so kommen auch PHP-Krisen rein; MEDIUM bei generischem Security-Keyword; sonst LOW. Matching durchweg wortgrenzen-basiert.
+4. **Melden:** **Nur HIGH** erzeugt ein Banner (klickbar via terminal-notifier, Fallback osascript; Ton bei HIGH). MEDIUM/LOW landen **stumm in der Menüliste** (kein Push). Alles konfigurierbar (Regel #2).
 5. **Anzeigen:** Menüleisten-Liste der letzten N Treffer, Klick öffnet den Artikel.
 
 ## 5. Quellen — verifiziert 2026-10-26 (S001, `curl -sI`, HTTP 200 + Content-Type real geprüft)

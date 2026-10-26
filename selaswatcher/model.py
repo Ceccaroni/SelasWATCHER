@@ -27,6 +27,9 @@ class Entry:
     # Hinweis aus der Quelle (z. B. KEV = HIGH), vom Scoring berücksichtigt.
     severity_hint: str | None = None
 
+    # Betroffene Pakete (z. B. GitHub Advisory) -> Abgleich gegen das Inventar.
+    affected_packages: list[str] = field(default_factory=list)
+
     # Vom Scoring gesetzt:
     severity: str = LOW
     matched_terms: list[str] = field(default_factory=list)
