@@ -29,7 +29,7 @@ DEFAULTS: dict[str, Any] = {
         "buerger-cert": True,
         "heise-security": True,
         "bleepingcomputer": True,
-        "nvd": True,
+        "nvd": False,  # Firehose (jede CVE); deaktiviert. KEV/GitHub/CERT-Bund decken den Stack ab.
         "github-advisory": True,
     },
     "github": {
@@ -37,11 +37,12 @@ DEFAULTS: dict[str, Any] = {
     },
     "scoring": {
         # Technologie-Watchlist: Treffer => immer HIGH (konzept.md §6).
+        # Nur der echte Stack (Wortgrenzen-Matching). Bewusst NICHT 'node'/'php'
+        # (fangen ganze Ökosysteme). PHP-Krisen kommen über News/Kritisch-Keywords.
         "watchlist": [
-            "php",
             "nextjs",
             "next.js",
-            "node",
+            "node.js",
             "supabase",
             "postgres",
             "postgresql",

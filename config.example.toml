@@ -17,7 +17,8 @@ poll_interval_seconds = 300
 "buerger-cert" = true
 "heise-security" = true
 "bleepingcomputer" = true
-"nvd" = true
+# NVD: Firehose (jede CVE, matcht ganze Ökosysteme) -> aus. KEV/GitHub/CERT-Bund decken den Stack ab.
+"nvd" = false
 "github-advisory" = true
 
 [github]
@@ -25,12 +26,13 @@ poll_interval_seconds = 300
 ecosystems = ["composer", "npm"]
 
 [scoring]
-# Technologie-Watchlist: Treffer in Titel/Summary => immer HIGH.
+# Technologie-Watchlist (Wortgrenzen): Treffer => HIGH (lautes Banner).
+# Nur der echte Stack. Bewusst NICHT 'node'/'php' (fangen ganze Ökosysteme).
+# Erweitern = eine Zeile, z. B. "redis". PHP-Krisen kommen über News/Kritisch-Keywords.
 watchlist = [
-    "php",
     "nextjs",
     "next.js",
-    "node",
+    "node.js",
     "supabase",
     "postgres",
     "postgresql",
