@@ -9,11 +9,11 @@ SelasWATCHER — eigenständiges, kleines **macOS-Frühwarn-Tool**. Überwacht S
 
 > Nur Ist-Zustand (kompakt). Verlauf → `sessions.md`/`archive.md` · Tickets → `tickets/INDEX.md`.
 
-- **Phase 2 — MVP-Kern gebaut & reviewt (S001, 2026-10-26).** Repo public: https://github.com/Ceccaroni/SelasWATCHER (Branch `master`). Architektur-ADR: `docs/adr/0001`.
-- **Lauffähig (CLI):** `python -m selaswatcher {poll,watch,test-notify}`. Fetcher mit Typ-Adaptern (7 RSS/Atom + JSON: CISA KEV, NVD, GitHub), Dedup mit First-Run-Baseline (keine Altmeldungs-Flut), Schwere-Scoring (Watchlist PHP/Next.js/Node/Supabase/Postgres/Docker/Infomaniak = immer HIGH), native osascript-Notifications (HIGH laut+🔴, MEDIUM leise, LOW keine). Config in `config.toml` (gitignored) / Defaults in `config.py`. State: `~/.selaswatcher/seen.json`.
-- **End-to-End verifiziert:** `test-notify` ✓; `poll` 2. Lauf hat `cert-bund-wid: 1 neu → HIGH → Notification` real gefeuert. **`cisa-advisories` deaktiviert** (RSS 403/WAF; CISA KEV deckt ab → `docs/konzept.md` §5).
-- **Nächster Schritt → TICKET-003 (Phase 3):** Menüleisten-App (`rumps`) + Autostart (LaunchAgent) + README-Betrieb. **Erst damit läuft es dauerhaft im Hintergrund** — aktuell nur manuell per CLI, kein Autostart.
-- **Offen:** MVP noch **nicht gepusht** (wartet auf «push»); Phase-4-Härtung notiert (`docs/roadmap.md`).
+- **Phase 3 fertig & reviewt (S001, 2026-10-26).** Repo public: https://github.com/Ceccaroni/SelasWATCHER (Branch `master`). ADR: `docs/adr/0001`.
+- **Menüleisten-App lauffähig:** `python -m selaswatcher.app` — Selas-Symbol als Template-Icon (tönt hell/dunkel), bei ungelesenen HIGH → rotes Icon + Zähler; Menü listet letzte ~30 Meldungen (Klick öffnet Artikel), „Jetzt prüfen"/„Als gelesen"/„Konfiguration öffnen"/„Beenden". Polling im Worker-Thread, UI-Updates im Main-Thread. Smoke-Test bestanden (startet sauber, Worker pollt, kein Crash).
+- **Kern (CLI weiterhin):** `python -m selaswatcher {poll,watch,test-notify}`. Fetcher Typ-Adapter (7 RSS/Atom + JSON: CISA KEV, NVD, GitHub), Dedup+Baseline, Scoring (Watchlist=HIGH), osascript-Notifications. `cisa-advisories` deaktiviert (403/WAF). State `~/.selaswatcher/seen.json`.
+- **Autostart:** LaunchAgent-Vorlage + `scripts/install-autostart.sh`/`uninstall-autostart.sh` — **erstellt, aber NICHT installiert** (Nutzer führt Install bewusst aus).
+- **Offen:** Phase 3 lokal committet, **Push + Autostart-Installation warten auf Adrians Wort**. Phase-4-Backlog → TICKET-004 (`docs/roadmap.md`): BACS HTML-Polling, Härtung (Notify-Fail-Retry, seen-Cap, CISA-Alt), py2app für gebrandete Notifications, Fehlalarm-Tuning.
 
 ## Goldene Regeln
 1. **SOFORT-Meldung ist das Kernversprechen.** Lieber eine Bedrohung einmal zu viel melden als eine verpassen. Eine verpasste echte Bedrohung ist der einzige echte Fehler.

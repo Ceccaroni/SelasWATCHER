@@ -20,4 +20,61 @@ Feeds pollen → Neues erkennen (Dedup) → nach Relevanz/Schwere bewerten → b
 - `tickets/` — Aufgaben
 
 ## Betrieb (Start / Stop / Autostart)
-_Wird dokumentiert, sobald der MVP steht (Phase 3)._
+
+### Einrichten (einmalig)
+```bash
+cd /Pfad/zu/SelasWATCHER
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+### Manuell starten (Menüleisten-App)
+```bash
+.venv/bin/python -m selaswatcher.app
+```
+Das Icon erscheint in der Menüleiste. Bei einem HIGH-Treffer wird es rot und
+zeigt die Anzahl ungelesener HIGH-Meldungen; das Menü listet die letzten ~30
+gemeldeten Einträge (neueste zuerst). Klick auf einen Eintrag öffnet die Quelle
+im Browser. Beenden über den Menüpunkt „Beenden".
+
+Zusätzlich gibt es weiterhin die CLI (ohne Menüleiste):
+```bash
+.venv/bin/python -m selaswatcher poll          # ein Durchlauf
+.venv/bin/python -m selaswatcher watch         # Endlosschleife
+.venv/bin/python -m selaswatcher test-notify   # Beispiel-Notification
+```
+
+### Autostart beim Login (LaunchAgent)
+```bash
+./scripts/install-autostart.sh     # installieren / aktualisieren (idempotent)
+./scripts/uninstall-autostart.sh   # wieder entfernen
+```
+Das Install-Skript ermittelt das venv-Python und den Repo-Pfad, füllt die Vorlage
+`launchagent/ch.selas.selaswatcher.plist` und lädt sie nach
+`~/Library/LaunchAgents/`. Voraussetzung ist ein eingerichtetes `.venv` (siehe oben).
+
+### Konfiguration
+Die Config liegt als `config.toml` im Repo-Verzeichnis **oder** in
+`~/.selaswatcher/` (CWD hat Vorrang). Vorlage kopieren und anpassen:
+```bash
+cp config.example.toml config.toml
+```
+Fehlt `config.toml`, laufen die eingebauten Defaults aus `selaswatcher/config.py`.
+
+- **Quelle an-/abschalten:** eine Zeile unter `[sources]`, z. B. `"heise-security" = false`.
+- **Watchlist erweitern:** einen Begriff in die `watchlist`-Liste unter `[scoring]`
+  aufnehmen, z. B. `"laravel"` — Treffer sind immer HIGH.
+
+Den Menüpunkt „Konfiguration öffnen" nutzen, um die aktive `config.toml` direkt
+zu öffnen (bzw. `~/.selaswatcher/` im Finder, falls noch keine existiert).
+
+### Log
+```
+~/Library/Logs/selaswatcher.log
+```
+(Nur im Autostart-Betrieb geschrieben; manuell gestartet geht das Log nach stderr.)
+
+### Hinweis zu Notifications
+Im MVP laufen die nativen Notifications über `osascript` und erscheinen daher als
+Absender „Script-Editor". Gebrandete Notifications („SelasWATCHER") kommen später
+mit einem eigenen `py2app`-Bundle (Phase 4).

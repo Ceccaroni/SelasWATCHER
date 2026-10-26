@@ -17,11 +17,11 @@ Repo-Grundgerüst nach Selas-Konventionen. Konzept + offene Entscheidungen dokum
 - Native macOS-Notification bei Treffer (schwereabhängig laut/leise).
 - **Smoke-Test:** künstlichen «Treffer» einspeisen → Notification erscheint.
 
-## Phase 3 — Menüleiste & Betrieb (~1 Session)
-- Menüleisten-App (`rumps`): Status-Icon, Badge bei neuem Treffer, Liste der letzten Treffer, Klick öffnet Artikel.
-- Config-Datei (Quellen, Watchlist, Intervall, Schwellen) — eine Quelle = eine Zeile.
-- Autostart via LaunchAgent; Verhalten bei Netzausfall/Neustart geprüft.
-- `README.md`: Start/Stop/Autostart/Deinstallation dokumentieren.
+## Phase 3 — Menüleiste & Betrieb ✅ (S001, reviewt + Smoke-Test)
+- Menüleisten-App (`rumps`, `selaswatcher/app.py`): Selas-Symbol-Icon (Template, tönt hell/dunkel), rotes Icon + Zähler bei ungelesenen HIGH, Liste der letzten ~30 Treffer, Klick öffnet Artikel; „Jetzt prüfen"/„Als gelesen"/„Konfiguration öffnen"/„Beenden". Worker-Thread pollt, Main-Thread aktualisiert UI.
+- Config-Datei (Quellen/Watchlist/Intervall) — eine Quelle = eine Zeile (`config.toml`, gitignored).
+- Autostart via LaunchAgent (`launchagent/` + `scripts/install-autostart.sh`/`uninstall-autostart.sh`).
+- `README.md` §Betrieb: Einrichten/Start/Autostart/Config/Log dokumentiert.
 
 ## Phase 4 — Feinschliff (nach Bedarf)
 - **BACS HTML-Polling** (eigenes Ticket): schonendes Scraping der Vorfall-Liste, da kein Feed.

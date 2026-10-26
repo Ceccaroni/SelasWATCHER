@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Vorlage. Platzhalter werden von scripts/install-autostart.sh ersetzt:
+    __PYTHON__   = absoluter Pfad zum venv-Python (.venv/bin/python3)
+    __MODULE__   = selaswatcher.app
+    __WORKDIR__  = Repo-Root (WorkingDirectory)
+    __HOME__     = $HOME (launchd expandiert kein '~' im Log-Pfad)
+
+  Optional: API-Keys als EnvironmentVariables ergänzen (höhere Rate-Limits),
+  z. B.:
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>NVD_API_KEY</key>
+      <string>...</string>
+      <key>GITHUB_TOKEN</key>
+      <string>...</string>
+    </dict>
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ch.selas.selaswatcher</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>__MODULE__</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__WORKDIR__</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ProcessType</key>
+  <string>Interactive</string>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/selaswatcher.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/selaswatcher.log</string>
+</dict>
+</plist>
