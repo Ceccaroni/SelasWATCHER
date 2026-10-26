@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Lokaler Laufzeit-Zustand (gehört NICHT ins Repo)
+# Primär in ~/.selaswatcher/ ; falls lokal im Repo abgelegt, hier ignorieren:
+state/
+seen.json
+*.local.json
+
+# Secrets (öffentliche Feeds brauchen keine; falls später doch)
+.env
+.env.*
+!.env.example
+
+# Editor/OS
+*.swp
+.idea/
+.vscode/
