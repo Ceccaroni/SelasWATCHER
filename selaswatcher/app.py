@@ -215,7 +215,12 @@ class SelasWatcherApp(rumps.App):
         self.queue.put(("entry", sample))  # -> Menüliste + rotes Icon via _drain
 
     def _on_mark_all_read(self, _item: rumps.MenuItem) -> None:
+        """Alles als gelesen: Alarm zurücksetzen UND die Meldungsliste leeren,
+        damit das Menü wieder übersichtlich ist. (Dedup-State bleibt unberührt —
+        schon gesehene Einträge kommen dadurch nicht erneut.)"""
+        self._recent.clear()
         self._reset_alarm()
+        self._build_menu()
 
     def _on_open_config(self, _item: rumps.MenuItem) -> None:
         """Aktive config.toml öffnen, sonst ~/.selaswatcher/ im Finder zeigen."""
