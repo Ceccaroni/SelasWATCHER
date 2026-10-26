@@ -68,6 +68,9 @@ Fehlt `config.toml`, laufen die eingebauten Defaults aus `selaswatcher/config.py
   das/die Repo-Verzeichnis(se) mit `package-lock.json` eintragen. GitHub-Advisories
   werden dann paketgenau gegen deine echten (auch transitiven) Abhängigkeiten
   gematcht — Alarm nur, wenn ein tatsächlich genutztes Paket betroffen ist.
+- **Dedup-State deckeln:** `[state] seen_cap` begrenzt die gespeicherten IDs je
+  Quelle (Default 2000), damit `~/.selaswatcher/seen.json` nicht unbegrenzt wächst.
+  `0` schaltet das Deckeln ab.
 
 Den Menüpunkt „Konfiguration öffnen" nutzen, um die aktive `config.toml` direkt
 zu öffnen (bzw. `~/.selaswatcher/` im Finder, falls noch keine existiert).

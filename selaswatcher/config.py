@@ -35,6 +35,11 @@ DEFAULTS: dict[str, Any] = {
     "github": {
         "ecosystems": ["npm"],  # nur das genutzte Ökosystem (kein composer/PHP)
     },
+    "state": {
+        # Max. gesehene IDs je Quelle (Dedup-State). Hält seen.json klein.
+        # Großzügig über jedem Feed-Fenster -> kein Re-Alarm alter Einträge. 0 = aus.
+        "seen_cap": 2000,
+    },
     "inventory": {
         # Repo-Verzeichnisse mit package-lock.json -> definiert, welche Pakete du nutzt.
         # GitHub-Advisories werden dagegen gematcht (nur echte Treffer -> HIGH).

@@ -25,6 +25,12 @@ poll_interval_seconds = 300
 # Ökosysteme für die GitHub Advisory DB (nur das genutzte).
 ecosystems = ["npm"]
 
+[state]
+# Max. gesehene IDs je Quelle im Dedup-State (seen.json). Älteste werden beim
+# Überschreiten gedeckelt. Großzügig über jedem Feed-Fenster -> kein Re-Alarm
+# alter Einträge. 0 = Deckeln aus.
+seen_cap = 2000
+
 [inventory]
 # Welche Pakete setzt du WIRKLICH ein? Repo-Verzeichnisse mit package-lock.json.
 # GitHub-Advisories werden paketgenau dagegen gematcht (Dependabot-Prinzip):

@@ -14,7 +14,7 @@ from .model import HIGH, MEDIUM, Entry
 from .notify import notify_entry
 from .scoring import score
 from .sources import enabled_sources, fetch_source
-from .state import State
+from .state import DEFAULT_SEEN_CAP, State
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class SourceResult:
     new: int = 0
     high: int = 0
     medium: int = 0
+    failed_high: int = 0  # HIGH, deren Zustellung scheiterte -> Retry (nicht als gesehen verbucht)
     error: str | None = None
 
 
@@ -55,16 +56,33 @@ def poll_once(
             else:
                 new_entries = state.filter_new(source.id, entries)
                 res.new = len(new_entries)
+                # Nur erfolgreich behandelte Einträge als gesehen verbuchen. Eine
+                # HIGH-Meldung, deren Zustellung scheiterte, bleibt bewusst "neu",
+                # damit der nächste Poll sie erneut versucht (Regel #1: eine
+                # verpasste Bedrohung ist der einzige echte Fehler).
+                to_mark: list[Entry] = []
                 for entry in new_entries:
                     score(entry, config)
-                    if entry.severity in (HIGH, MEDIUM):
+                    if entry.severity == HIGH:
                         if notifier(entry):
-                            if entry.severity == HIGH:
-                                res.high += 1
-                            else:
-                                res.medium += 1
-                        log.info("[%s] %s — %s", entry.severity, entry.source_name, entry.title)
-                state.mark_seen(source.id, new_entries)
+                            res.high += 1
+                            to_mark.append(entry)
+                            log.info("[%s] %s — %s", entry.severity, entry.source_name, entry.title)
+                        else:
+                            # Beide Notifier-Wege gescheitert -> NICHT verbuchen (Retry).
+                            # Das rote Menü-Icon signalisiert es bereits sichtbar.
+                            res.failed_high += 1
+                            log.error(
+                                "HIGH-Zustellung FEHLGESCHLAGEN — Retry im nächsten Poll: %s — %s",
+                                entry.source_name, entry.title,
+                            )
+                    else:
+                        if entry.severity == MEDIUM:
+                            notifier(entry)  # bewusst stumm (kein Banner) -> nur Menüliste
+                            res.medium += 1
+                            log.info("[%s] %s — %s", entry.severity, entry.source_name, entry.title)
+                        to_mark.append(entry)  # MEDIUM/LOW gelten als behandelt
+                state.mark_seen(source.id, to_mark)
 
             state.set_last_run(source.id)
         except Exception as exc:  # bewusst breit: Quelle isolieren (Regel #3)
@@ -73,6 +91,9 @@ def poll_once(
 
         poll.results.append(res)
 
+    # seen-Liste deckeln, damit seen.json nicht unbegrenzt wächst (Regel #3).
+    cap = int(config.get("state", {}).get("seen_cap", DEFAULT_SEEN_CAP))
+    state.prune(cap)
     state.save()
     return poll
 
@@ -84,8 +105,11 @@ def format_summary(poll: PollResult) -> str:
         if r.error:
             lines.append(f"{r.source_id:<20}  FEHLER: {r.error}")
         else:
-            lines.append(
+            line = (
                 f"{r.source_id:<20} {r.fetched:>6} {r.new:>5}  "
                 f"H{r.high}/M{r.medium}"
             )
+            if r.failed_high:
+                line += f"  ⚠ {r.failed_high} HIGH-Zustellung fehlgeschlagen (Retry)"
+            lines.append(line)
     return "\n".join(lines)

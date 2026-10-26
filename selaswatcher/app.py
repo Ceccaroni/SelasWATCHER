@@ -165,15 +165,21 @@ class SelasWatcherApp(rumps.App):
                 msg = self.queue.get_nowait()
                 if msg[0] == "entry":
                     entry = msg[1]
+                    # Schon gelistet? (z. B. Retry einer HIGH, deren Zustellung
+                    # scheiterte) -> nicht doppelt listen oder erneut hochzählen.
+                    # Das rote Icon bleibt vom ersten Auftreten bestehen.
+                    if any(e.dedup_id == entry.dedup_id for e in self._recent):
+                        continue
                     self._recent.insert(0, entry)
                     if entry.severity == HIGH:
                         self._unread_high += 1
+                    changed = True
                 elif msg[0] == "poll_done":
                     when, new_count = msg[1], msg[2]
                     self._last_checked = when
                     suffix = f"{new_count} neu" if new_count else "nichts Neues"
                     self._status_title = f"Zuletzt geprüft: {when:%H:%M:%S} · {suffix}"
-                changed = True
+                    changed = True
         except queue.Empty:
             pass
         if changed:

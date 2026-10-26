@@ -22,6 +22,11 @@ log = logging.getLogger(__name__)
 
 DEFAULT_STATE_PATH = Path.home() / ".selaswatcher" / "seen.json"
 
+# Max. gesehene IDs je Quelle. Großzügig über jedem realen Feed-Fenster, damit
+# gedeckelte (= alte, längst nicht mehr ausgelieferte) IDs nicht erneut als "neu"
+# auftauchen. `<= 0` schaltet das Deckeln ab.
+DEFAULT_SEEN_CAP = 2000
+
 
 def _parse_iso(value: str | None) -> datetime | None:
     """Robustes ISO-8601-Parsen (inkl. 'Z' und reinem Datum)."""
@@ -133,3 +138,22 @@ class State:
         st = self.source_state(source_id)
         st["initialized"] = True
         self.mark_seen(source_id, entries)
+
+    def prune(self, cap: int = DEFAULT_SEEN_CAP) -> None:
+        """Pro Quelle die seen-Liste auf die letzten `cap` IDs deckeln (FIFO:
+        älteste zuerst raus) und versions passend mitziehen. Verhindert, dass
+        seen.json unbegrenzt wächst. `cap <= 0` deaktiviert das Deckeln."""
+        if cap <= 0:
+            return
+        for st in self._data.values():
+            if not isinstance(st, dict):
+                continue
+            seen = st.get("seen")
+            if not isinstance(seen, list) or len(seen) <= cap:
+                continue
+            kept = seen[-cap:]
+            st["seen"] = kept
+            versions = st.get("versions")
+            if isinstance(versions, dict):
+                kept_set = set(kept)
+                st["versions"] = {k: v for k, v in versions.items() if k in kept_set}
