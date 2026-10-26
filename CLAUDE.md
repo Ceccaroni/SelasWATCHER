@@ -12,8 +12,8 @@ SelasWATCHER — eigenständiges, kleines **macOS-Frühwarn-Tool**. Überwacht S
 - **Phase 3 fertig & reviewt (S001, 2026-10-26).** Repo public: https://github.com/Ceccaroni/SelasWATCHER (Branch `master`). ADR: `docs/adr/0001`.
 - **Menüleisten-App lauffähig:** `python -m selaswatcher.app` — Selas-Symbol als Template-Icon (tönt hell/dunkel), bei ungelesenen HIGH → rotes Icon + Zähler; Menü listet letzte ~30 Meldungen (Klick öffnet Artikel), „Jetzt prüfen"/„Als gelesen"/„Konfiguration öffnen"/„Beenden". Polling im Worker-Thread, UI-Updates im Main-Thread. Smoke-Test bestanden (startet sauber, Worker pollt, kein Crash).
 - **Kern (CLI weiterhin):** `python -m selaswatcher {poll,watch,test-notify}`. Fetcher Typ-Adapter (7 RSS/Atom + JSON: CISA KEV, NVD, GitHub), Dedup+Baseline, Scoring (Watchlist=HIGH), osascript-Notifications. `cisa-advisories` deaktiviert (403/WAF). State `~/.selaswatcher/seen.json`.
-- **Autostart:** LaunchAgent-Vorlage + `scripts/install-autostart.sh`/`uninstall-autostart.sh` — **erstellt, aber NICHT installiert** (Nutzer führt Install bewusst aus).
-- **Offen:** Phase 3 lokal committet, **Push + Autostart-Installation warten auf Adrians Wort**. Phase-4-Backlog → TICKET-004 (`docs/roadmap.md`): BACS HTML-Polling, Härtung (Notify-Fail-Retry, seen-Cap, CISA-Alt), py2app für gebrandete Notifications, Fehlalarm-Tuning.
+- **LIVE (S001, 2026-10-26):** Phase 3 auf `master` gepusht. **Autostart installiert** (`~/Library/LaunchAgents/ch.selas.selaswatcher.plist`, RunAtLoad/KeepAlive) — App läuft dauerhaft, pollt sauber (Log `~/Library/Logs/selaswatcher.log`). Deinstallieren: `scripts/uninstall-autostart.sh`.
+- **Offen (Backlog) → TICKET-004 (Phase 4):** BACS HTML-Polling, Härtung (Notify-Fail-Retry, seen-Cap, CISA-Advisories-Alternative), py2app für gebrandete Notifications, Fehlalarm-Tuning nach echtem Betrieb. Alles optional/nach Bedarf.
 
 ## Goldene Regeln
 1. **SOFORT-Meldung ist das Kernversprechen.** Lieber eine Bedrohung einmal zu viel melden als eine verpassen. Eine verpasste echte Bedrohung ist der einzige echte Fehler.
