@@ -2,6 +2,14 @@
 
 > Max. ~3 kompakte Einträge. Ältestes beim neuen Eintrag im Volltext nach `archive.md`. Details ins Ticket-File.
 
+## S005 — 2026-10-27 — Fehlalarm-Tuning: Breach-Keywords von HIGH auf MEDIUM
+- **Erster Realbetrieb-Fehlalarm:** Über Nacht rotes Banner über eine Datenpanne an der Uni Kopenhagen (525'000 Betroffene, via BleepingComputer) — **betrifft Selas nicht** (fremde Organisation, kein Paket/Infra/Provider). Adrian gab die Meldung zur Durchsicht (Fluss A = Tuning hier im Watcher-Repo).
+- **Ursache belegt (echter Scorer, nicht geraten):** News-Pfad matchte in `high_keywords` die Begriffe `data breach`+`breach` → HIGH → Banner. Problem: `breach`/`data breach`/`datenleck` pauschal HIGH ⇒ **jede Panne weltweit bannert** (täglich mehrere, praktisch nie Selas-relevant) — „zu laut"-Kategorie (Regel #2).
+- **Entscheid (Adrian): die drei Breach/Leak-Begriffe `datenleck`/`data breach`/`breach` von `high_keywords` → `generic_keywords`** (= MEDIUM, stumm in Menüliste, kein Banner). **`ransomware` bleibt bewusst HIGH** (Adrian). Kein ADR (Tuning innerhalb des bestehenden Watchlist/always_high-Rahmens, keine neue Architektur).
+- **Warum Regel #1 (nichts verpassen) gewahrt:** Ein uns betreffender Breach trägt fast immer ein zweites Signal, das HIGH bleibt — **Watchlist** (Infomaniak/Supabase/Postgres/Docker/Next.js/Node.js genannt) oder **Dringlichkeits-Keyword** (actively exploited/zero-day/rce/emergency patch/unauthenticated). PHP-Gründungsfall hängt nicht an „breach" (kommt über BACS/CISA `always_high`) → unberührt. Rest-Fall (relevanter Breach ohne Stack-/Dringlichkeitswort) ist nicht verloren: MEDIUM = sichtbar in der Liste, zudem fängt der Inventar-Abgleich (GitHub/KEV) Paket-/Supply-Chain-Breaches.
+- **Gebaut:** `config.py`-Defaults + `config.example.toml` synchron geändert (config.toml überschreibt Scoring nicht). **Verifiziert** über echten `score()`-Pfad, 5 Fälle grün: Kopenhagen→MEDIUM, dt. Fremd-`datenleck`→MEDIUM, `ransomware`→HIGH, Infomaniak-Breach (Watchlist)→HIGH, Breach+`actively exploited`→HIGH.
+- Commit steht lokal; **Push + LaunchAgent-Reload auf Adrians Wort** (laufender Watcher nutzt alte Defaults bis Reload). TICKET-004 Fehlalarm-Tuning: Teil erledigt (Breach-Lärm); offen bleibt PHP-Loudness + py2app.
+
 ## S004 — 2026-10-26 — BACS/NCSC via HTML-Polling (always_high)
 - **Phase-4-Rest „BACS HTML" umgesetzt** (Adrian wählte diesen aus TICKET-004). BACS = autoritative CH-Quelle (Regel #6), hatte bisher keinen Adapter.
 - **Verifiziert statt vermutet (Regel #5):** researcher (nur WebFetch→Markdown) konnte Roh-HTML/Header/JS-Rendering nicht prüfen → ich selbst per echtem `requests`-Abruf: **(a) kein Feed** (kein `<link rel=alternate>`, `/rss`+`/de/rss`+alte NCSC-Pfade 404, Sitemap/robots feedfrei), **(b) kein WAF** — Default-UA `SelasWATCHER/0.1` → 200 (anders als CISA), kein ETag/Last-Modified, **(c) server-gerendert** (Nuxt-SSR, Inhalt im Roh-HTML) → stdlib-Parsing, **keine bs4-Dependency** (Regel #4), **(d)** reguläres Card-Markup, 7 Einträge, alle Anker (`meta-info__item`/`h3`/`card__footer__action`/`card__description`) 1:1.
@@ -20,9 +28,4 @@
 - **Verifiziert:** Unit-Sim (Schwelle/Einmal-Alarm/Erholung/Retry/Schwelle-0/Persistenz, alle Asserts grün) + realer Poll-Zyklus über alle 9 Quellen (Temp-State): kein Crash, Baseline → 0 Meldungen, alle `fail_streak=0`. Health-Watcher-Commit steht lokal, Push/Reload auf Adrians Wort.
 - Offen (TICKET-004): PHP-Loudness via `high_keywords` (Fehlalarm-Tuning), py2app, BACS HTML.
 
-## S002 — 2026-10-26 — Phase-4-Härtung: Notify-Fail-Retry + seen-Cap
-- **Stiller Verlust behoben (Regel #1):** `poller.poll_once` verbuchte bisher *jeden* neuen Eintrag als gesehen — auch eine HIGH, deren Zustellung scheiterte (terminal-notifier *und* osascript fehlgeschlagen). Jetzt: nur erfolgreich behandelte Einträge (`to_mark`) werden markiert; eine fehlgeschlagene HIGH bleibt „neu" → **Retry im nächsten Poll**. Zähler `failed_high` + `log.error` + Summary-Hinweis (⚠). MEDIUM/LOW gelten unverändert als behandelt.
-- **Alarm-Fallback sichtbar:** App listet eine fehlgeschlagene HIGH trotzdem (rotes Icon + Menüzeile). `app._drain` dedupliziert Einträge per `dedup_id` → der 5-Minuten-Retry erzeugt **keine** Doppelzeile/kein Hochzählen; rotes Icon bleibt vom ersten Auftreten bis „Alle als gelesen".
-- **seen.json gedeckelt (Regel #3):** `State.prune(cap)` deckelt pro Quelle auf die letzten `cap` IDs (FIFO), `versions` synchron mitgezogen. `[state] seen_cap` (Default 2000, großzügig über jedem Feed-Fenster → kein Re-Alarm alter Einträge; `0` = aus). Pruning läuft am Ende jedes `poll_once`.
-- Verifiziert per 3 Mini-Sims (Retry-Verbuchung, prune FIFO+versions, App-Dedup headless via `build_app`) — alle bestanden. Keine Netz-/Live-State-Interferenz (lief gegen Temp-State).
 - Offen in [[TICKET-004]]: BACS HTML, CISA-Advisories-Alternative, py2app-Notifications, Fehlalarm-Tuning. Watcher läuft weiter (alter Code bis Neustart des LaunchAgent).

@@ -82,9 +82,6 @@ DEFAULTS: dict[str, Any] = {
             "emergency patch",
             "notfall-patch",
             "ransomware",
-            "datenleck",
-            "data breach",
-            "breach",
             "unauthenticated",
         ],
         # Generische Security-Keywords => MEDIUM.
@@ -103,6 +100,12 @@ DEFAULTS: dict[str, Any] = {
             "backdoor",
             "privilege escalation",
             "denial of service",
+            # Breach/Leak-Begriffe bewusst nur MEDIUM (stumm): ein Breach wird erst
+            # HIGH, wenn er unseren Stack/Provider (Watchlist) oder ein Dringlichkeits-
+            # Keyword nennt. Nacktes "breach" ist Fremd-Laerm (woechentlich irgendwo).
+            "datenleck",
+            "data breach",
+            "breach",
         ],
     },
 }

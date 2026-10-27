@@ -2,6 +2,12 @@
 
 > Ältere Session-Einträge, Stand-Snapshots, überholte Entscheide. Beim Session-Start NICHT laden — nur bei Bedarf greppen.
 
+## S002 — 2026-10-26 — Phase-4-Härtung: Notify-Fail-Retry + seen-Cap
+- **Stiller Verlust behoben (Regel #1):** `poller.poll_once` verbuchte bisher *jeden* neuen Eintrag als gesehen — auch eine HIGH, deren Zustellung scheiterte (terminal-notifier *und* osascript fehlgeschlagen). Jetzt: nur erfolgreich behandelte Einträge (`to_mark`) werden markiert; eine fehlgeschlagene HIGH bleibt „neu" → **Retry im nächsten Poll**. Zähler `failed_high` + `log.error` + Summary-Hinweis (⚠). MEDIUM/LOW gelten unverändert als behandelt.
+- **Alarm-Fallback sichtbar:** App listet eine fehlgeschlagene HIGH trotzdem (rotes Icon + Menüzeile). `app._drain` dedupliziert Einträge per `dedup_id` → der 5-Minuten-Retry erzeugt **keine** Doppelzeile/kein Hochzählen; rotes Icon bleibt vom ersten Auftreten bis „Alle als gelesen".
+- **seen.json gedeckelt (Regel #3):** `State.prune(cap)` deckelt pro Quelle auf die letzten `cap` IDs (FIFO), `versions` synchron mitgezogen. `[state] seen_cap` (Default 2000, großzügig über jedem Feed-Fenster → kein Re-Alarm alter Einträge; `0` = aus). Pruning läuft am Ende jedes `poll_once`.
+- Verifiziert per 3 Mini-Sims (Retry-Verbuchung, prune FIFO+versions, App-Dedup headless via `build_app`) — alle bestanden. Keine Netz-/Live-State-Interferenz (lief gegen Temp-State).
+
 ## S001 — 2026-10-26 — Scaffolding + Architektur + MVP-Kern
 - Repo-Grundgerüst nach Selas-Konventionen; Architektur mit Adrian bestätigt (`docs/konzept.md` §6, ADR `docs/adr/0001`).
 - Feed-URLs real verifiziert (`curl`): 7 RSS/Atom + 3 JSON-API; BACS ohne Feed→Phase 4; CISA-Advisories-RSS 403/WAF→deaktiviert.
