@@ -62,6 +62,9 @@ class Source:
     vulndb: bool = False  # Vuln-Datenbank (Firehose) -> nur bei Watchlist-Treffer melden
     always_high: bool = False  # kuratierte Dringlichkeits-Quelle -> jeder Eintrag HIGH
     headers: dict[str, str] | None = None  # quellenspezifische HTTP-Header (z. B. WAF-Umgehung)
+    # Quelle führt im Titel ein Schwere-Tag ([mittel]/[hoch]/[kritisch]) — CERT-Bund/BSI.
+    # Das Scoring lässt dann einen Stack-Treffer nur bei hoch/kritisch bannern (Regel #2).
+    severity_tagged: bool = False
 
 
 # Reihenfolge wie konzept.md §5.
@@ -80,8 +83,8 @@ SOURCES: dict[str, Source] = {
         # ist CISAs "sofort handeln"-Stream (~4/6 Wochen) -> always_high (konzept.md §6, S003).
         Source("cisa-advisories", "CISA Advisories", "rss", "https://www.cisa.gov/cybersecurity-advisories/alerts.xml", "en", True, always_high=True, headers=_CISA_HEADERS),
         Source("cisa-kev", "CISA KEV", "json", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "en", True, vulndb=True),
-        Source("cert-bund-wid", "CERT-Bund WID", "rss", "https://wid.cert-bund.de/content/public/securityAdvisory/rss", "de", True),
-        Source("buerger-cert", "Bürger-CERT (BSI)", "rss", "https://wid.cert-bund.de/content/public/buergercert/rss", "de", True),
+        Source("cert-bund-wid", "CERT-Bund WID", "rss", "https://wid.cert-bund.de/content/public/securityAdvisory/rss", "de", True, severity_tagged=True),
+        Source("buerger-cert", "Bürger-CERT (BSI)", "rss", "https://wid.cert-bund.de/content/public/buergercert/rss", "de", True, severity_tagged=True),
         Source("heise-security", "heise Security", "atom", "https://www.heise.de/security/feed.xml", "de", True),
         Source("bleepingcomputer", "BleepingComputer", "rss", "https://www.bleepingcomputer.com/feed/", "en", True),
         Source("nvd", "NVD (CVE)", "json", "https://services.nvd.nist.gov/rest/json/cves/2.0", "en", True, vulndb=True),

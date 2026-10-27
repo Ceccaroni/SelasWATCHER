@@ -81,7 +81,6 @@ DEFAULTS: dict[str, Any] = {
             "rce",
             "emergency patch",
             "notfall-patch",
-            "ransomware",
             "unauthenticated",
         ],
         # Generische Security-Keywords => MEDIUM.
@@ -100,12 +99,15 @@ DEFAULTS: dict[str, Any] = {
             "backdoor",
             "privilege escalation",
             "denial of service",
-            # Breach/Leak-Begriffe bewusst nur MEDIUM (stumm): ein Breach wird erst
-            # HIGH, wenn er unseren Stack/Provider (Watchlist) oder ein Dringlichkeits-
-            # Keyword nennt. Nacktes "breach" ist Fremd-Laerm (woechentlich irgendwo).
+            # Breach/Leak- UND Ransomware-Begriffe bewusst nur MEDIUM (stumm): sie werden
+            # erst HIGH, wenn sie unseren Stack/Provider (Watchlist) oder ein Dringlichkeits-
+            # Keyword (aktiv ausgenutzt/zero-day/rce) nennen. Nacktes "ransomware"/"breach"
+            # ist Fremd-Laerm (woechentlich irgendwo, z. B. Safepay gegen eine CH-Gemeinde) —
+            # kein Selas-Bezug, gehoert in die Liste, nicht ins Banner (S006).
             "datenleck",
             "data breach",
             "breach",
+            "ransomware",
         ],
     },
 }

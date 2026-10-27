@@ -36,6 +36,19 @@ _watchlist_hits = _word_hits
 _keyword_hits = _word_hits
 
 
+# Schwere-Tag autoritativer DE-Quellen (CERT-Bund/BSI): Titel führt "[mittel]",
+# "[hoch]", "[kritisch]" o. ä. (ggf. nach "[UPDATE]"). Treibt bei source.severity_tagged
+# die Banner-Entscheidung, damit die tägliche [mittel]-Flut (Node/Docker/Postgres)
+# nicht mehr bannert (Regel #2).
+_SEV_TAG_RE = re.compile(r"\[(kritisch|hoch|mittel|niedrig)\]", re.I)
+
+
+def _severity_tag(title: str) -> str | None:
+    """CERT-Bund-Schwere aus dem Titel ziehen ('hoch'/'kritisch'/'mittel'/'niedrig') oder None."""
+    m = _SEV_TAG_RE.search(title)
+    return m.group(1).lower() if m else None
+
+
 def score(entry: Entry, config: dict[str, Any]) -> None:
     """Setzt entry.severity und entry.matched_terms in-place."""
     scfg = config.get("scoring", {})
@@ -81,8 +94,27 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
     gk = _word_hits(text, generic_kw)
     entry.matched_terms = wl + hk + gk
 
-    # Stack oder Kritisch-Keyword -> HIGH (Banner).
-    if wl or hk:
+    # Dringlichkeits-Keyword (aktiv ausgenutzt, zero-day, rce, unauthenticated, …) -> immer HIGH.
+    # Regel #1: aktive Ausnutzung nie verschlucken, egal wie die Quelle sie einstuft.
+    # (ransomware/breach sind bewusst NICHT hier, sondern generisch -> MEDIUM, siehe config.py.)
+    if hk:
+        entry.severity = HIGH
+        return
+
+    # Schwere-getaggte Quelle (CERT-Bund/BSI): Stack-Treffer bannert nur noch, wenn die
+    # Quelle selbst hoch/kritisch meldet — die tägliche [mittel]-Flut (Node/Docker/Postgres)
+    # landet stumm in der Liste (Regel #2). Unlesbarer Tag -> im Zweifel laut (Regel #1).
+    # Fremd-Produkte (kein Stack-Bezug) bannern nicht: generisch -> MEDIUM, sonst LOW.
+    if source and source.severity_tagged:
+        if wl:
+            tag = _severity_tag(entry.title)
+            entry.severity = MEDIUM if tag in ("mittel", "niedrig") else HIGH
+            return
+        entry.severity = MEDIUM if gk else LOW
+        return
+
+    # Übrige News-Quellen: Stack-Treffer -> HIGH (Banner).
+    if wl:
         entry.severity = HIGH
         return
     # Generischer Security-Treffer -> MEDIUM (nur Menüliste, kein Banner).
