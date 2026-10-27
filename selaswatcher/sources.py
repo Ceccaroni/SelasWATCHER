@@ -303,10 +303,20 @@ def _fetch_github(source: Source, state: State, config: dict[str, Any]) -> list[
             sev = (adv.get("severity") or "").lower()
             hint = HIGH if sev in ("critical", "high") else None
             pkgs: list[str] = []
+            # Name (lowercase) -> verwundbare Versionsbereiche. Ein GHSA listet pro Paket
+            # oft mehrere Einträge (je Major-Linie: 6.x/7.x/8.x) — ODER-verknüpft, das
+            # Scoring prüft, ob die installierte Version in EINEM davon liegt.
+            ranges: dict[str, list[str]] = {}
             for v in adv.get("vulnerabilities") or []:
-                pname = (v.get("package") or {}).get("name")
-                if pname and pname not in pkgs:
+                pkg = v.get("package")
+                pname = pkg.get("name") if isinstance(pkg, dict) else None
+                if not pname:
+                    continue
+                if pname not in pkgs:
                     pkgs.append(pname)
+                vr = v.get("vulnerable_version_range")
+                if vr:
+                    ranges.setdefault(pname.lower(), []).append(str(vr))
             entries.append(
                 Entry(
                     source_id=source.id,
@@ -319,6 +329,7 @@ def _fetch_github(source: Source, state: State, config: dict[str, Any]) -> list[
                     lang=source.lang,
                     severity_hint=hint,
                     affected_packages=pkgs,
+                    affected_ranges=ranges,
                 )
             )
     return entries

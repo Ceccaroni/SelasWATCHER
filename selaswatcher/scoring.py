@@ -20,6 +20,7 @@ import re
 from typing import Any
 
 from .model import HIGH, LOW, MEDIUM, Entry
+from .semver import in_range
 
 
 def _word_hits(text: str, terms: list[str]) -> list[str]:
@@ -49,6 +50,34 @@ def _severity_tag(title: str) -> str | None:
     return m.group(1).lower() if m else None
 
 
+def _version_affected(
+    name: str,
+    ranges: dict[str, list[str]],
+    installed: dict[str, set[str]],
+) -> bool:
+    """Ist die INSTALLIERTE Version von `name` wirklich im verwundbaren Bereich?
+
+    Dependabot-Prinzip: ein Advisory für ein genutztes Paket zählt nur, wenn die konkret
+    installierte Version im `vulnerable_version_range` liegt (sonst ist bereits gepatcht).
+
+    Regel #1 — nur SICHER entwarnen: Fehlt der Bereich (z. B. KEV ohne Range), fehlt die
+    installierte Version (Paket nur in package.json, kein Lockfile) oder ist der Bereich
+    nicht eindeutig auswertbar (semver.in_range -> None), gilt das Paket als betroffen.
+    `False` nur, wenn ALLE installierten Versionen nachweislich ausserhalb liegen."""
+    rngs = ranges.get(name)
+    if not rngs:
+        return True  # kein Bereich bekannt -> im Zweifel melden
+    vers = installed.get(name)
+    if not vers:
+        return True  # installierte Version unbekannt -> im Zweifel melden
+    for ver in vers:
+        for rng in rngs:
+            res = in_range(ver, rng)
+            if res is None or res is True:  # unsicher ODER drin -> betroffen
+                return True
+    return False  # jede installierte Version nachweislich ausserhalb -> gepatcht
+
+
 def score(entry: Entry, config: dict[str, Any]) -> None:
     """Setzt entry.severity und entry.matched_terms in-place."""
     scfg = config.get("scoring", {})
@@ -72,18 +101,25 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
         # Paketgenauer Abgleich (Dependabot-Prinzip): nennt die Quelle betroffene
         # Pakete (GitHub Advisory) und ist ein Inventar konfiguriert, dann HIGH nur,
         # wenn ein tatsächlich genutztes Paket dabei ist.
-        from .inventory import load_inventory
+        from .inventory import load_inventory, load_inventory_versions
 
         inv = load_inventory(config)
         if entry.affected_packages and inv:
-            hits = sorted({p.lower() for p in entry.affected_packages} & inv)
+            name_hits = sorted({p.lower() for p in entry.affected_packages} & inv)
+            # VERSIONS-GATE (Dependabot-Prinzip, S008): nur die Pakete behalten, deren
+            # INSTALLIERTE Version wirklich im verwundbaren Bereich liegt. Das killt die
+            # Fehlalarm-Flut aus Advisories gegen Versionen, die man längst gepatcht hat
+            # (z. B. alle undici-Advisories < 7.30.1, während 7.30.1 installiert ist).
+            # Regel #1: unbekannter Bereich/unbekannte Version/uneindeutig -> gilt als betroffen.
+            versions = load_inventory_versions(config)
+            hits = [n for n in name_hits if _version_affected(n, entry.affected_ranges, versions)]
             entry.matched_terms = hits
             # BANNER (HIGH) nur bei kritischer/hoher Advisory-Schwere (severity_hint,
             # vom GitHub-Fetcher gesetzt). Ein moderate/low Advisory in einem genutzten
             # (oft transitiven) Paket — meist DoS/ReDoS, z. B. undici/qs/nodemailer —
             # ist kein Sofort-Handeln -> MEDIUM, stumm in der Liste (S007, Regel #2).
             if not hits:
-                entry.severity = LOW  # nicht unser Paket
+                entry.severity = LOW  # nicht unser Paket ODER installierte Version nicht betroffen
             elif entry.severity_hint == HIGH:
                 entry.severity = HIGH
             else:
