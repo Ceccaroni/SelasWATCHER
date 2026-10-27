@@ -78,7 +78,16 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
         if entry.affected_packages and inv:
             hits = sorted({p.lower() for p in entry.affected_packages} & inv)
             entry.matched_terms = hits
-            entry.severity = HIGH if hits else LOW
+            # BANNER (HIGH) nur bei kritischer/hoher Advisory-Schwere (severity_hint,
+            # vom GitHub-Fetcher gesetzt). Ein moderate/low Advisory in einem genutzten
+            # (oft transitiven) Paket — meist DoS/ReDoS, z. B. undici/qs/nodemailer —
+            # ist kein Sofort-Handeln -> MEDIUM, stumm in der Liste (S007, Regel #2).
+            if not hits:
+                entry.severity = LOW  # nicht unser Paket
+            elif entry.severity_hint == HIGH:
+                entry.severity = HIGH
+            else:
+                entry.severity = MEDIUM
             return
         # Fallback (KEV ohne Paketangabe, oder GitHub ohne Inventar): Watchlist
         # nur gegen den TITEL (= Produktname) — die Beschreibung erzeugt Fehltreffer.
