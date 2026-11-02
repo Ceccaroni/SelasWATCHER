@@ -2,6 +2,14 @@
 
 > Ältere Session-Einträge, Stand-Snapshots, überholte Entscheide. Beim Session-Start NICHT laden — nur bei Bedarf greppen.
 
+## S007 — 2026-10-27 — Fehlalarm-Tuning Runde 3: GitHub-Inventar-Treffer schwere-gegated
+- **Auslöser:** Adrian schickte einen Screenshot der Menüliste — mehrere rote (HIGH) `GitHub Advisory DB (npm)`-Einträge (undici/qs/nodemailer), „pffff". Gleiche Krankheit wie CERT-Bund (S006), anderer Pfad: der Inventar-Treffer (Dependabot-Prinzip) setzte **pauschal HIGH**, ohne die Advisory-Schwere zu lesen → die 836 transitiven npm-Pakete erzeugen laufend moderate DoS/ReDoS-Advisories als Banner.
+- **Befund (echter Code):** `sources._fetch_github` füllt `severity_hint = HIGH` bereits nur bei GitHub-Schwere `critical`/`high` (sonst `None`) — aber der `scoring`-Inventarzweig **las `severity_hint` nie**. Reiner Scoring-Fix, keine neue Fetch-Logik.
+- **Gebaut (`scoring.py`, Hauptsession/Opus):** Inventar-Treffer bannert nur noch bei `entry.severity_hint == HIGH`; `moderate`/`low` → MEDIUM (stumm in Liste); kein Treffer → LOW (unverändert). KEV unberührt (eigener Titel-Watchlist-Fallback, `severity_hint=HIGH`).
+- **Entscheid (Adrian): Variante A** — `critical`/`high` bannert, `moderate`/`low` → Liste. Variante B („nur `critical`") verworfen, weil sie ein high-RCE/Auth-Bypass im eigenen Stack nur in die Liste gelegt hätte (Regel #1).
+- **Verifiziert:** 3 synthetische Logik-Fälle (hint=HIGH→HIGH, hint=None→MEDIUM, kein Treffer→LOW) + **Live gegen die echte GitHub-API**: von den 6 Screenshot-Roten werden 5 → MEDIUM (qs, 3× nodemailer, 1× undici); **eine undici-WebSocket-DoS bleibt HIGH, weil GitHub sie selbst als `high` einstuft** (korrekt, echt im Stack). `py_compile` grün.
+- Commit steht lokal; **Push + LaunchAgent-Reload auf Adrians Wort**. Realbetrieb-Nebenbefund (offen, s. u.): terminal-notifier hat keine Notification-Berechtigung → HIGH-Banner laufen nur über den osascript-Fallback.
+
 ## S006 — 2026-10-27 — Fehlalarm-Tuning Runde 2: CERT-Bund schwere-gegated + ransomware→MEDIUM
 - **Auslöser:** Adrian spielte Realmeldungen ein (BleepingComputer PHP2Shell; inside-it Safepay-Ransomware gegen Tessiner Gemeinde + Berner ARA; Apple CoreGraphics Zero-Day; CERT-Bund Node.js `[mittel]` + Docker Desktop `[mittel]`). Fragen: wichtig? + was tun — und „ich werd gefühlt noch immer zugeballert".
 - **Triage (Beratung, kein Code):** PHP2Shell fängt der Watcher dreifach (CISA-Advisory `always_high` + BleepingComputer-News-Keywords „rce"/„in the wild"/„actively exploited"), für Adrian aber **irrelevant** — PHP letzte Woche überall deinstalliert. **Apple** (CVE-2026-86950, OOB-Write CoreGraphics, aktiv ausgenutzt, auch macOS) = einzige Sofort-Aktion → Adrian updatet abends auf **26.7.1** (26.7 ist noch nicht gepatcht!). Safepay = Lagebild, kein Patch. Node/Docker = `[mittel]`, Routine (Node beim nächsten Wartungsfenster).

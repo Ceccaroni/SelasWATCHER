@@ -84,6 +84,7 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
     watchlist = scfg.get("watchlist", [])
     high_kw = scfg.get("high_keywords", [])
     generic_kw = scfg.get("generic_keywords", [])
+    infra_kw = scfg.get("infra_keywords", [])
 
     from .sources import SOURCES
 
@@ -137,33 +138,38 @@ def score(entry: Entry, config: dict[str, Any]) -> None:
     wl = _word_hits(text, watchlist)
     hk = _word_hits(text, high_kw)
     gk = _word_hits(text, generic_kw)
-    entry.matched_terms = wl + hk + gk
+    inf = _word_hits(text, infra_kw)
+    entry.matched_terms = wl + hk + gk + inf
 
-    # Dringlichkeits-Keyword (aktiv ausgenutzt, zero-day, rce, unauthenticated, …) -> immer HIGH.
-    # Regel #1: aktive Ausnutzung nie verschlucken, egal wie die Quelle sie einstuft.
-    # (ransomware/breach sind bewusst NICHT hier, sondern generisch -> MEDIUM, siehe config.py.)
-    if hk:
+    # Dringlichkeits-Keyword (aktiv ausgenutzt, zero-day, rce, …) -> HIGH NUR mit Stack-Bezug
+    # (Watchlist) ODER Host-/Infra-Bezug. Selas self-hostet (Ubuntu-VPS + Docker), daher bleiben
+    # Kernel-/OS-/SSH-/TLS-/Container-Escape-Lücken laut (S010: Kernel-UAF, unauth Remote-Root).
+    # Ein Dringlichkeits-Keyword ALLEIN (stack-fremde Story: GitLab, Drupal, Ivanti, …) -> MEDIUM,
+    # stumm in der Liste (TICKET-004). Regel #1: der PHP-Gründungsfall hängt an BACS/CISA
+    # always_high (oben), NICHT an diesem Keyword-Pfad.
+    if hk and (wl or inf):
         entry.severity = HIGH
         return
 
-    # Schwere-getaggte Quelle (CERT-Bund/BSI): Stack-Treffer bannert nur noch, wenn die
-    # Quelle selbst hoch/kritisch meldet — die tägliche [mittel]-Flut (Node/Docker/Postgres)
-    # landet stumm in der Liste (Regel #2). Unlesbarer Tag -> im Zweifel laut (Regel #1).
-    # Fremd-Produkte (kein Stack-Bezug) bannern nicht: generisch -> MEDIUM, sonst LOW.
+    # Schwere-getaggte Quelle (CERT-Bund/BSI): Stack-Treffer bannert nur bei hoch/kritisch —
+    # die tägliche [mittel]-Flut (Node/Docker/Postgres) landet stumm in der Liste (S006).
+    # Unlesbarer Tag bei Stack-Treffer -> im Zweifel laut (Regel #1). Ohne Stack: ein
+    # Dringlichkeits-Keyword allein oder generischer Treffer -> MEDIUM (stumm), sonst LOW.
     if source and source.severity_tagged:
         if wl:
             tag = _severity_tag(entry.title)
             entry.severity = MEDIUM if tag in ("mittel", "niedrig") else HIGH
             return
-        entry.severity = MEDIUM if gk else LOW
+        entry.severity = MEDIUM if (hk or gk) else LOW
         return
 
     # Übrige News-Quellen: Stack-Treffer -> HIGH (Banner).
     if wl:
         entry.severity = HIGH
         return
-    # Generischer Security-Treffer -> MEDIUM (nur Menüliste, kein Banner).
-    if gk:
+    # Dringlichkeits-Keyword allein (stack-fremd) ODER generischer Security-Treffer -> MEDIUM
+    # (nur Menüliste, kein Banner) — Regel #1: nicht verschlucken, nur nicht bannern.
+    if hk or gk:
         entry.severity = MEDIUM
         return
     entry.severity = LOW

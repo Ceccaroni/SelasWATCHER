@@ -89,12 +89,27 @@ generic_keywords = [
     "backdoor",
     "privilege escalation",
     "denial of service",
-    # Breach/Leak- UND Ransomware-Begriffe bewusst nur MEDIUM (stumm): erst HIGH, wenn
-    # sie unseren Stack/Provider (Watchlist) oder ein Dringlichkeits-Keyword (aktiv
-    # ausgenutzt/zero-day/rce) nennen. Nacktes "ransomware"/"breach" ist Fremd-Laerm
-    # (woechentlich irgendwo, z. B. Safepay gegen eine CH-Gemeinde) — Liste statt Banner (S006).
+    # Breach/Leak- UND Ransomware-Begriffe bewusst nur MEDIUM (stumm): erst HIGH, wenn sie
+    # unseren Stack/Provider (Watchlist) oder einen Host-/Infra-Term nennen. Ein Dringlichkeits-
+    # Keyword ALLEIN genuegt seit TICKET-004 nicht mehr (stack-fremd -> MEDIUM). Nacktes
+    # "ransomware"/"breach" ist Fremd-Laerm (z. B. Safepay gegen eine CH-Gemeinde) — Liste statt Banner (S006).
     "datenleck",
     "data breach",
     "breach",
     "ransomware",
+]
+
+# Host-/Infra-Terme: Selas self-hostet (Ubuntu-VPS + Docker). Ein Dringlichkeits-Keyword
+# (zero-day/rce/aktiv ausgenutzt) AUF einem dieser Terme bleibt HIGH, auch ohne Stack-Paket
+# in der Watchlist — Kernel/OS/SSH/TLS/Container-Escape sind host-relevant (S010). 'docker'
+# faellt schon unter die Watchlist. Ein Dringlichkeits-Keyword OHNE Infra/Stack -> MEDIUM (TICKET-004).
+infra_keywords = [
+    "linux",
+    "kernel",
+    "ubuntu",
+    "openssh",
+    "openssl",
+    "glibc",
+    "containerd",
+    "runc",
 ]
