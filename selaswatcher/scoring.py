@@ -50,6 +50,18 @@ def _severity_tag(title: str) -> str | None:
     return m.group(1).lower() if m else None
 
 
+# Rang der Titel-Schwere (kritisch=4 … niedrig=1; 0 = kein/unlesbarer Tag). Für die
+# [UPDATE]-Re-Banner-Dämpfung (S012): ein schwere-getaggtes Advisory, das nur mit neuer
+# published-Version erneut auftaucht, bannert nur bei Schwere-Anstieg erneut (Regel #2);
+# gleicher/niedrigerer Rang -> stumm. Rang 0 (unlesbar) -> im Zweifel laut (Regel #1).
+_SEV_RANK = {"niedrig": 1, "mittel": 2, "hoch": 3, "kritisch": 4}
+
+
+def severity_tag_rank(title: str) -> int:
+    """Rang der Titel-Schwere (1–4; 0 = kein/unlesbarer Tag)."""
+    return _SEV_RANK.get(_severity_tag(title) or "", 0)
+
+
 def _version_affected(
     name: str,
     ranges: dict[str, list[str]],

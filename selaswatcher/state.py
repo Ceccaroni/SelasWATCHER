@@ -92,6 +92,7 @@ class State:
             {
                 "seen": [],
                 "versions": {},
+                "sev": {},  # dedup_id -> zuletzt gesehener Titel-Schwere-Rang ([UPDATE]-Dämpfung, S012)
                 "etag": None,
                 "modified": None,
                 "last_run": None,
@@ -148,13 +149,32 @@ class State:
     def filter_new(self, source_id: str, entries: list[Entry]) -> list[Entry]:
         return [e for e in entries if self.is_new(source_id, e)]
 
-    def mark_seen(self, source_id: str, entries: list[Entry]) -> None:
+    def is_republish(self, source_id: str, entry: Entry) -> bool:
+        """True, wenn diese dedup_id bereits gesehen wurde UND jetzt mit einer NEUEREN
+        published-Version kommt (ein CERT-Bund-[UPDATE] desselben Advisories) — im
+        Unterschied zu einem Eintrag, der zum ersten Mal auftaucht. Für die
+        [UPDATE]-Re-Banner-Dämpfung (S012)."""
         st = self.source_state(source_id)
+        if entry.dedup_id not in st["seen"]:
+            return False
+        prev_dt = _parse_iso(st.get("versions", {}).get(entry.dedup_id))
+        return bool(entry.published and prev_dt and entry.published > prev_dt)
+
+    def prev_severity_rank(self, source_id: str, dedup_id: str) -> int:
+        """Zuletzt verbuchter Titel-Schwere-Rang dieser id (0 = unbekannt)."""
+        return int(self.source_state(source_id).get("sev", {}).get(dedup_id, 0))
+
+    def mark_seen(self, source_id: str, entries: list[Entry]) -> None:
+        from .scoring import severity_tag_rank  # lazy: entkoppelt Import-Reihenfolge
+
+        st = self.source_state(source_id)
+        sev = st.setdefault("sev", {})  # setdefault: alte seen.json-Quellen ohne sev-Feld
         for e in entries:
             if e.dedup_id not in st["seen"]:
                 st["seen"].append(e.dedup_id)
             if e.published:
                 st["versions"][e.dedup_id] = e.published.isoformat()
+            sev[e.dedup_id] = severity_tag_rank(e.title)
 
     def mark_all_seen(self, source_id: str, entries: list[Entry]) -> None:
         """First-Run-Baseline: alles still als gesehen markieren."""
@@ -176,7 +196,10 @@ class State:
                 continue
             kept = seen[-cap:]
             st["seen"] = kept
+            kept_set = set(kept)
             versions = st.get("versions")
             if isinstance(versions, dict):
-                kept_set = set(kept)
                 st["versions"] = {k: v for k, v in versions.items() if k in kept_set}
+            sev = st.get("sev")
+            if isinstance(sev, dict):
+                st["sev"] = {k: v for k, v in sev.items() if k in kept_set}

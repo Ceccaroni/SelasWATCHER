@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 from .model import HIGH, MEDIUM, Entry
 from .notify import notify_entry
-from .scoring import score
+from .scoring import score, severity_tag_rank
 from .sources import Source, enabled_sources, fetch_source
 from .state import DEFAULT_SEEN_CAP, State
 
@@ -118,6 +118,22 @@ def poll_once(
                 to_mark: list[Entry] = []
                 for entry in new_entries:
                     score(entry, config)
+                    # [UPDATE]-Re-Banner-Dämpfung (S012, Regel #2): CERT-Bund/BSI geben
+                    # Sammel-Advisories mehrfach täglich als [UPDATE] mit neuer published-
+                    # Zeit neu heraus. Taucht ein schwere-getaggtes Advisory NUR wegen
+                    # neuerer Version erneut auf und ist die Titel-Schwere NICHT gestiegen,
+                    # bannert es nicht noch einmal -> MEDIUM (stumm, bleibt in der Liste).
+                    # Für severity_tagged-Quellen ist der Tag das maßgebliche Schwere-Signal
+                    # (S006). Regel #1: Schwere-Hochstufung ([hoch]->[kritisch]) oder
+                    # unlesbarer Tag (Rang 0) bleibt HIGH (laut).
+                    if (entry.severity == HIGH and source.severity_tagged
+                            and state.is_republish(source.id, entry)):
+                        cur = severity_tag_rank(entry.title)
+                        prev = state.prev_severity_rank(source.id, entry.dedup_id)
+                        if cur and prev and cur <= prev:
+                            entry.severity = MEDIUM
+                            log.info("gedämpft ([UPDATE], Schwere-Rang %d unverändert): %s — %s",
+                                     cur, entry.source_name, entry.title)
                     if entry.severity == HIGH:
                         if notifier(entry):
                             res.high += 1
