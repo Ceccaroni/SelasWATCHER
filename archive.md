@@ -2,6 +2,16 @@
 
 > Ältere Session-Einträge, Stand-Snapshots, überholte Entscheide. Beim Session-Start NICHT laden — nur bei Bedarf greppen.
 
+## S008 — 2026-10-27 — Versions-genaues Inventar-Matching (Dependabot-Prinzip zu Ende)
+- **Auslöser:** Adrian schickte einen Screenshot mit 4 roten (HIGH) `GitHub Advisory DB (npm)`-undici-Bannern (TLS-cert-bypass, Cache-Poisoning, TLS-1.2-DoS) — „mann, hätt den bau des watchers besser sein lassen". Diagnose-Verdacht: trotz S007-Gate noch Flut.
+- **Wurzel (echter Code + Live-API, nicht geraten):** Der Inventar-Abgleich matchte nur den **Paketnamen** (`sources._fetch_github` las `vulnerable_version_range` nie). Selas fährt **undici 7.30.1** (direkte Dep); **0 von 73** undici-Advisories betreffen 7.30.1 (alle `< 7.30.1`, meist *in* 7.30.1 gefixt). → Alle 4 Banner = **Fehlalarm**, Adrian ist längst gepatcht. Tiefer als S005–S007 (dort Keyword-Tuning; hier fehlte das Versions-Matching ganz).
+- **Entscheid (Adrian): Variante A** — versionsbewusstes Matching bauen (nicht nur diagnostizieren, kein billiger Workaround).
+- **Gebaut (Hauptsession/Opus — sicherheitskritische Meldelogik, bewusst nicht delegiert):** neues `semver.py` (`in_range`, bewusst minimal: komma-UND-Constraints, `>=/>/<=/</=`, defensiv → `None` bei unsicher); `model.Entry.affected_ranges`; `sources._fetch_github` liest Range je Paket (ODER über Major-Linien); `inventory.load_inventory_versions` (Name→installierte Version aus Lockfile); `scoring._version_affected` als Versions-Gate im vulndb-Zweig.
+- **Regel #1 streng:** nur SICHER entwarnen — unbekannter/unparsebarer Range, unbekannte installierte Version (nur package.json) oder Prerelease → gilt als betroffen; `False` (Dämpfung) nur, wenn ALLE installierten Versionen nachweislich ausserhalb. Kein ADR (setzt bestehendes „Dependabot-Prinzip" vollständig um).
+- **Verifiziert:** 14 Semver-Unit-Fälle grün + echter `score()`-Pfad gegen Live-GitHub-API (4 undici-Banner → LOW) + 5 Regel-#1-Gegenproben grün (7.30.1-im-Range+critical→HIGH, kein-Range→HIGH, unparsebar→HIGH, Fremd-Paket→LOW, gepatcht→LOW). `py_compile` grün.
+- **Nebenbefund (echte Handlungsaufforderung an Adrian):** `@modelcontextprotocol/sdk` **1.29.0** ist **echt** betroffen — 6 offene Advisories (4× high), Fix **≥ 1.32.0**. Der erste rote Screenshot-Eintrag war KEIN Fehlalarm → bleibt zu Recht HIGH. Der Umbau trennt echt von falsch.
+- Commit steht lokal; **Push + LaunchAgent-Reload auf Adrians Wort** (laufender Watcher nutzt alte Logik bis Reload).
+
 ## S007 — 2026-10-27 — Fehlalarm-Tuning Runde 3: GitHub-Inventar-Treffer schwere-gegated
 - **Auslöser:** Adrian schickte einen Screenshot der Menüliste — mehrere rote (HIGH) `GitHub Advisory DB (npm)`-Einträge (undici/qs/nodemailer), „pffff". Gleiche Krankheit wie CERT-Bund (S006), anderer Pfad: der Inventar-Treffer (Dependabot-Prinzip) setzte **pauschal HIGH**, ohne die Advisory-Schwere zu lesen → die 836 transitiven npm-Pakete erzeugen laufend moderate DoS/ReDoS-Advisories als Banner.
 - **Befund (echter Code):** `sources._fetch_github` füllt `severity_hint = HIGH` bereits nur bei GitHub-Schwere `critical`/`high` (sonst `None`) — aber der `scoring`-Inventarzweig **las `severity_hint` nie**. Reiner Scoring-Fix, keine neue Fetch-Logik.
