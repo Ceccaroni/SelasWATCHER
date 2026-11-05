@@ -11,9 +11,11 @@ poll_interval_seconds = 300
 "bacs" = true
 "inside-it" = true
 "20min" = true
-# cisa-advisories: reaktiviert (S003). alerts.xml (kuratiert, kein ICS-Lärm), KEV-Wrapper
-# gefiltert, Rest = always_high. WAF-403 per Browser-UA umgangen (quellenspezifische Header).
-"cisa-advisories" = true
+# cisa-advisories: DEAKTIVIERT (S014, 2026-11). CISA blockt alle .xml-Feeds per Akamai-WAF
+# gegen Skript-Clients (403 unabhängig vom User-Agent; mehrfach extern belegt). Kein offener
+# Ersatz (kein JSON/API; CSAF deckt nur ICS/VA, nicht die Alerts). always_high-Netz trägt über
+# BACS + CERT-Bund; aktiv-ausgenutzte CVEs laufen weiter über cisa-kev. Kehrt S003 um.
+"cisa-advisories" = false
 "cisa-kev" = true
 "cert-bund-wid" = true
 "buerger-cert" = true

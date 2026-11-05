@@ -81,6 +81,10 @@ SOURCES: dict[str, Source] = {
         # alerts.xml = CISAs kuratierte übergreifende Alerts (kein ICS-Lärm wie all.xml).
         # KEV-Wrapper-Items werden in _fetch_feed gefiltert (deckt cisa-kev ab); der Rest
         # ist CISAs "sofort handeln"-Stream (~4/6 Wochen) -> always_high (konzept.md §6, S003).
+        # ACHTUNG: per Default in der Config DEAKTIVIERT (S014, 2026-11). CISA blockt alle
+        # .xml-Feeds per Akamai-WAF gegen Skript-Clients (403; headers=_CISA_HEADERS wirkt
+        # nicht mehr, der UA-Trick aus S003 ist tot). Kein offener Ersatz (CSAF = nur ICS/VA).
+        # Definition bleibt, falls der Block fällt — NICHT blind re-aktivieren. konzept.md §6.5.
         Source("cisa-advisories", "CISA Advisories", "rss", "https://www.cisa.gov/cybersecurity-advisories/alerts.xml", "en", True, always_high=True, headers=_CISA_HEADERS),
         Source("cisa-kev", "CISA KEV", "json", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "en", True, vulndb=True),
         Source("cert-bund-wid", "CERT-Bund WID", "rss", "https://wid.cert-bund.de/content/public/securityAdvisory/rss", "de", True, severity_tagged=True),
